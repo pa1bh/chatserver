@@ -29,6 +29,7 @@ const { info, warn, error, target } = createLogger("ws");
 
 const clients = new Map<string, ServerWebSocket>();
 const clientInfo = new Map<string, Client>();
+const clientIp = new Map<string, string>();
 
 const send = (ws: ServerWebSocket, payload: OutgoingMessage) => {
   ws.send(JSON.stringify(payload));
@@ -78,17 +79,19 @@ const buildStatus = () => ({
 const server = Bun.serve<{ id?: string }>({
   port,
   fetch(req, server) {
-    if (server.upgrade(req)) return undefined;
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() || req.remoteAddr?.hostname || "unknown";
+    if (server.upgrade(req, { data: { ip } })) return undefined;
     return new Response("Upgrade Required", { status: 426 });
   },
   websocket: {
     open(ws) {
       const id = crypto.randomUUID();
       const name = `guest-${id.slice(0, 6)}`;
-      ws.data = { id };
+      ws.data = { id, ip: (ws.data as any)?.ip };
       clients.set(id, ws);
+      if (ws.data.ip) clientIp.set(id, ws.data.ip);
       clientInfo.set(id, { id, name, connectedAt: Date.now() });
-      info("Nieuwe gebruiker verbonden", { id, name });
+      info("Nieuwe gebruiker verbonden", { id, name, ip: ws.data.ip });
       send(ws, { type: "ackName", name, at: Date.now() });
       broadcast({ type: "system", text: `${name} heeft de chat betreden.`, at: Date.now() }, id);
     },
@@ -117,7 +120,7 @@ const server = Bun.serve<{ id?: string }>({
             at: Date.now(),
           };
           broadcast(payload);
-          info("Bericht verzonden", { from: client.name });
+          info("Bericht verzonden", { from: client.name, id: client.id, ip: ws.data?.ip });
           break;
         }
         case "setName": {
@@ -129,7 +132,7 @@ const server = Bun.serve<{ id?: string }>({
           clientInfo.set(clientId, client);
           send(ws, { type: "ackName", name: newName, at: Date.now() });
           broadcast({ type: "system", text: `${oldName} heet nu ${newName}.`, at: Date.now() }, clientId);
-          info("Gebruikersnaam gewijzigd", { oldName, newName });
+          info("Gebruikersnaam gewijzigd", { oldName, newName, id: client.id, ip: ws.data?.ip });
           break;
         }
         case "status": {
@@ -151,9 +154,11 @@ const server = Bun.serve<{ id?: string }>({
       const client = clientInfo.get(clientId);
       clients.delete(clientId);
       clientInfo.delete(clientId);
+      const ip = clientIp.get(clientId);
+      clientIp.delete(clientId);
       if (client) {
         broadcast({ type: "system", text: `${client.name} heeft de chat verlaten.`, at: Date.now() }, clientId);
-        info("Gebruiker heeft de chat verlaten", { name: client.name });
+        info("Gebruiker heeft de chat verlaten", { name: client.name, id: client.id, ip });
       }
     },
   },
