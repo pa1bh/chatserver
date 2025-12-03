@@ -13,8 +13,6 @@ const nameBadge = qs("#nameBadge");
 const currentNameEl = qs("#currentName");
 const nameModal = qs("#nameModal");
 const closeNameBtn = qs("#closeName");
-const nameBadge = qs("#nameBadge");
-const currentNameEl = qs("#currentName");
 
 let socket;
 let currentName = "";
