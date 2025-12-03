@@ -4,7 +4,11 @@
   "type": "module",
   "scripts": {
     "dev": "bun --watch index.ts",
-    "start": "bun run index.ts"
+    "dev:http": "bun --watch index.ts",
+    "dev:ws": "bun --watch ws-server.ts",
+    "start": "bun run index.ts",
+    "start:http": "bun run index.ts",
+    "start:ws": "bun run ws-server.ts"
   },
   "devDependencies": {
     "bun-types": "latest"

@@ -1,27 +1,28 @@
 import express from "express";
+import { createLogger } from "./logger";
 
 const app = express();
 const port = Number(process.env.PORT) || 3000;
+const wsPort = Number(process.env.WS_PORT || 3001);
+const wsUrl = process.env.WS_URL ?? `ws://localhost:${wsPort}`;
 const startedAt = new Date();
 let requestCount = 0;
+const { info, target } = createLogger("http");
 
 const toMB = (bytes: number) => Number((bytes / 1024 / 1024).toFixed(2));
+const indexTemplate = await Bun.file("public/index.html").text();
 
-app.use((_req, _res, next) => {
+app.use((req, _res, next) => {
   requestCount += 1;
   next();
 });
 
 app.get("/", (_req, res) => {
-  res.send(`
-    <main style="font-family: system-ui, -apple-system, sans-serif; max-width: 680px; margin: 64px auto; padding: 0 24px; line-height: 1.6;">
-      <h1 style="margin: 0 0 16px; font-size: 32px;">Welkom bij Bunserve</h1>
-      <p style="margin: 0 0 12px;">Deze homepage wordt geserveerd via Express, draaiend op de Bun runtime.</p>
-      <p style="margin: 0;">Later voegen we meer routes en functionaliteit toe.</p>
-      <p style="margin: 24px 0 0;"><a href="/status" style="color: #0f6ad8;">Bekijk serverstatus</a></p>
-    </main>
-  `);
+  const page = indexTemplate.replace(/__WS_URL__/g, wsUrl);
+  res.type("html").send(page);
 });
+
+app.use(express.static("public"));
 
 app.get("/status", (_req, res) => {
   const memory = process.memoryUsage();
@@ -32,6 +33,7 @@ app.get("/status", (_req, res) => {
     bunVersion: Bun.version,
     nodeEnv: process.env.NODE_ENV ?? "development",
     port,
+    wsUrl,
     startedAt: startedAt.toISOString(),
     uptimeSeconds: Number(process.uptime().toFixed(2)),
     requestsHandled: requestCount,
@@ -43,5 +45,5 @@ app.get("/status", (_req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Server draait op http://localhost:${port}`);
+  info("HTTP server gestart", { port, wsUrl, logTarget: target });
 });

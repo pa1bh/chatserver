@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="ws-url" content="__WS_URL__" />
+    <title>Bunserve Chat</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <header class="header">
+        <div>
+          <p class="eyebrow">Bun + WebSockets</p>
+          <h1>Chatroom</h1>
+          <p class="subtitle">Verbind, kies een naam, en chat live met anderen.</p>
+        </div>
+        <div class="status" id="connectionStatus">Verbinden...</div>
+      </header>
+
+      <section class="controls">
+        <label class="field">
+          <span>Gebruikersnaam</span>
+          <input id="nickname" type="text" placeholder="bijv. marleen" maxlength="32" />
+        </label>
+        <button id="saveName" type="button">Opslaan</button>
+      </section>
+
+      <section class="chat">
+        <div id="messages" class="messages" aria-live="polite"></div>
+        <form id="chatForm" class="composer">
+          <input id="chatInput" type="text" placeholder="Typ een bericht of gebruik /status, /users, /name nieuwenaam" autocomplete="off" />
+          <button type="submit">Verstuur</button>
+        </form>
+      </section>
+    </main>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
