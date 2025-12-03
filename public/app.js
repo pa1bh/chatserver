@@ -35,7 +35,9 @@ const appendMessage = (type, text, meta = "", isMine = false) => {
   item.appendChild(metaEl);
   item.appendChild(body);
   messagesEl.appendChild(item);
-  messagesEl.scrollTop = messagesEl.scrollHeight;
+  requestAnimationFrame(() => {
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  });
 };
 
 const sendPayload = (payload) => {
