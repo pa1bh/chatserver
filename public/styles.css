@@ -10,12 +10,17 @@
 body {
   margin: 0;
   min-height: 100vh;
+  overflow: hidden;
 }
 
 .page {
   max-width: 900px;
   margin: 0 auto;
-  padding: 32px 16px 48px;
+  padding: 24px 16px 24px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .header {
@@ -23,7 +28,6 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 24px;
 }
 
 .eyebrow {
@@ -52,13 +56,6 @@ h1 {
   font-weight: 600;
   min-width: 140px;
   text-align: center;
-}
-
-.controls {
-  display: flex;
-  gap: 12px;
-  align-items: end;
-  margin-bottom: 16px;
 }
 
 .field {
@@ -105,7 +102,8 @@ button:active {
   padding: 12px;
   display: flex;
   flex-direction: column;
-  min-height: 380px;
+  flex: 1;
+  min-height: 0;
 }
 
 .messages {
@@ -144,10 +142,26 @@ button:active {
   display: flex;
   gap: 10px;
   margin-top: 12px;
+  position: sticky;
+  bottom: 0;
+  background: #fff;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
 }
 
 .composer input {
   flex: 1;
+}
+
+.chat-topbar {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  padding: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  margin-bottom: 10px;
 }
 
 @media (max-width: 640px) {
@@ -156,12 +170,12 @@ button:active {
     align-items: flex-start;
   }
 
-  .controls {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
   button {
     width: 100%;
+  }
+
+  .chat-topbar {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
