@@ -20,9 +20,9 @@ const setStatus = (text, tone = "info") => {
   connectionStatus.style.color = tone === "error" ? "#9f1239" : tone === "warn" ? "#854d0e" : "#312e81";
 };
 
-const appendMessage = (type, text, meta = "") => {
+const appendMessage = (type, text, meta = "", isMine = false) => {
   const item = document.createElement("div");
-  item.className = `msg ${type}`;
+  item.className = `msg ${type} ${isMine ? "mine" : ""}`;
   const metaEl = document.createElement("div");
   metaEl.className = "meta";
   metaEl.textContent = meta;
@@ -67,9 +67,11 @@ const handleMessage = (event) => {
   }
 
   switch (payload.type) {
-    case "chat":
-      appendMessage("msg", payload.text, `${payload.from} • ${new Date(payload.at).toLocaleTimeString()}`);
+    case "chat": {
+      const isMine = payload.from === currentName;
+      appendMessage("msg", payload.text, `${payload.from} • ${new Date(payload.at).toLocaleTimeString()}`, isMine);
       break;
+    }
     case "system":
       appendMessage("system", payload.text, new Date(payload.at).toLocaleTimeString());
       break;

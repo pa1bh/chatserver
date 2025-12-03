@@ -135,6 +135,15 @@ button:active {
   border-radius: 12px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
+  align-self: flex-start;
+  max-width: 75%;
+}
+
+.msg.mine {
+  background: #e6ffed;
+  border-color: #86efac;
+  align-self: flex-end;
+  text-align: left;
 }
 
 .msg .meta {
