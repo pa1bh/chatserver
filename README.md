@@ -30,6 +30,7 @@ bun run dev:ws
 
 ## Configuratie
 - `PORT` (default `3000`): HTTP server.
+- `HOST` (default `0.0.0.0`): Bind adres HTTP server.
 - `WS_PORT` (default `3001`): WebSocket server.
 - `WS_URL`: optioneel volledig WebSocket-adres dat in de frontend wordt geïnjecteerd (anders `ws://localhost:WS_PORT`).
 - `LOG_TARGET`: `stdout` (default) of `file`.
