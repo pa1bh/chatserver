@@ -26,6 +26,19 @@ const buildWsUrl = (reqHost?: string) => {
   const targetHost = wsHostOverride || fromHeader || "localhost";
   return wsUrlOverride ?? `ws://${targetHost}:${wsPort}`;
 };
+const resolveWsLogUrl = () => {
+  if (wsUrlOverride) return wsUrlOverride;
+  if (wsHostOverride) return `ws://${wsHostOverride}:${wsPort}`;
+  const nets = os.networkInterfaces();
+  for (const net of Object.values(nets)) {
+    if (!net) continue;
+    for (const { address, family, internal } of net) {
+      if (internal || family !== "IPv4") continue;
+      return `ws://${address}:${wsPort}`;
+    }
+  }
+  return `ws://localhost:${wsPort}`;
+};
 const getLocalUrls = (p: number) => {
   const nets = os.networkInterfaces();
   const urls = new Set<string>();
@@ -77,5 +90,6 @@ app.get("/status", (_req, res) => {
 
 app.listen(port, host, () => {
   const urls = getLocalUrls(port);
-  info("HTTP server gestart", { port, host, wsUrl, logTarget: target, urls });
+  const wsLogUrl = resolveWsLogUrl();
+  info("HTTP server gestart", { port, host, wsUrl: wsLogUrl, logTarget: target, urls });
 });
