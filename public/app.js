@@ -9,6 +9,8 @@ const input = qs("#chatInput");
 const nicknameInput = qs("#nickname");
 const saveNameBtn = qs("#saveName");
 const connectionStatus = qs("#connectionStatus");
+const nameBadge = qs("#nameBadge");
+const currentNameEl = qs("#currentName");
 
 let socket;
 let currentName = "";
@@ -78,6 +80,7 @@ const handleMessage = (event) => {
     case "ackName":
       currentName = payload.name;
       nicknameInput.value = payload.name;
+      if (currentNameEl) currentNameEl.textContent = payload.name;
       appendMessage("system", `Je heet nu ${payload.name}.`, new Date(payload.at).toLocaleTimeString());
       break;
     case "status":
@@ -136,6 +139,11 @@ saveNameBtn?.addEventListener("click", () => {
   const name = nicknameInput.value.trim();
   if (!name) return appendMessage("error", "Voer een naam in om op te slaan.", "client");
   sendPayload({ type: "setName", name });
+});
+
+nameBadge?.addEventListener("click", () => {
+  nicknameInput?.focus();
+  nicknameInput?.select();
 });
 
 connect();
