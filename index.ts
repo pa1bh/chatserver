@@ -6,12 +6,26 @@ const app = express();
 const port = Number(process.env.PORT) || 3000;
 const host = process.env.HOST ?? "0.0.0.0";
 const wsPort = Number(process.env.WS_PORT || 3001);
-const wsUrl = process.env.WS_URL ?? `ws://localhost:${wsPort}`;
+const wsHostOverride = process.env.WS_HOST;
+const wsUrlOverride = process.env.WS_URL;
 const startedAt = new Date();
 let requestCount = 0;
 const { info, target } = createLogger("http");
 
 const toMB = (bytes: number) => Number((bytes / 1024 / 1024).toFixed(2));
+const parseHostHeader = (value?: string) => {
+  if (!value) return null;
+  const [first] = value.split(",");
+  const clean = first?.trim();
+  if (!clean) return null;
+  const [hostname] = clean.split(":");
+  return hostname || null;
+};
+const buildWsUrl = (reqHost?: string) => {
+  const fromHeader = parseHostHeader(reqHost);
+  const targetHost = wsHostOverride || fromHeader || "localhost";
+  return wsUrlOverride ?? `ws://${targetHost}:${wsPort}`;
+};
 const getLocalUrls = (p: number) => {
   const nets = os.networkInterfaces();
   const urls = new Set<string>();
@@ -33,6 +47,7 @@ app.use((req, _res, next) => {
 });
 
 app.get("/", (_req, res) => {
+  const wsUrl = buildWsUrl(_req.headers.host);
   const page = indexTemplate.replace(/__WS_URL__/g, wsUrl);
   res.type("html").send(page);
 });
@@ -41,6 +56,7 @@ app.use(express.static("public"));
 
 app.get("/status", (_req, res) => {
   const memory = process.memoryUsage();
+  const wsUrl = buildWsUrl(_req.headers.host);
 
   res.json({
     status: "ok",
