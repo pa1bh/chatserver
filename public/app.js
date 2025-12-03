@@ -36,7 +36,7 @@ const appendMessage = (type, text, meta = "", isMine = false) => {
   item.appendChild(body);
   messagesEl.appendChild(item);
   requestAnimationFrame(() => {
-    messagesEl.scrollTop = messagesEl.scrollHeight;
+    messagesEl.scrollTo({ top: messagesEl.scrollHeight, behavior: "smooth" });
   });
 };
 
