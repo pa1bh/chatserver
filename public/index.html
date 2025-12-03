@@ -19,17 +19,14 @@
       </header>
 
       <section class="chat">
-        <div class="chat-topbar">
-          <label class="field">
-            <span>Gebruikersnaam</span>
-            <input id="nickname" type="text" placeholder="bijv. marleen" maxlength="32" />
-          </label>
-          <button id="saveName" type="button">Opslaan</button>
-        </div>
         <div id="messages" class="messages" aria-live="polite"></div>
         <form id="chatForm" class="composer">
+          <div class="inline-name">
+            <input id="nickname" type="text" placeholder="naam" maxlength="32" />
+            <button id="saveName" type="button" title="Sla naam op">💾</button>
+          </div>
           <input id="chatInput" type="text" placeholder="Typ een bericht of gebruik /status, /users, /name nieuwenaam" autocomplete="off" />
-          <button type="submit">Verstuur</button>
+          <button type="submit" title="Verstuur">➔</button>
         </form>
       </section>
     </main>

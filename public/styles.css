@@ -177,15 +177,19 @@ button:active {
   flex: 1;
 }
 
-.chat-topbar {
+.inline-name {
   display: flex;
-  gap: 12px;
-  align-items: flex-end;
-  padding: 8px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  margin-bottom: 10px;
+  gap: 8px;
+  align-items: center;
+}
+
+.inline-name input {
+  width: 140px;
+}
+
+.inline-name button {
+  width: 42px;
+  padding: 10px;
 }
 
 @media (max-width: 640px) {
@@ -196,10 +200,5 @@ button:active {
 
   button {
     width: 100%;
-  }
-
-  .chat-topbar {
-    flex-direction: column;
-    align-items: stretch;
   }
 }
