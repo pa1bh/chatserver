@@ -85,7 +85,7 @@ const server = Bun.serve<{ id?: string }>({
     open(ws) {
       const id = crypto.randomUUID();
       const name = `guest-${id.slice(0, 6)}`;
-      ws.data.id = id;
+      ws.data = { id };
       clients.set(id, ws);
       clientInfo.set(id, { id, name, connectedAt: Date.now() });
       info("Nieuwe gebruiker verbonden", { id, name });
@@ -93,7 +93,7 @@ const server = Bun.serve<{ id?: string }>({
       broadcast({ type: "system", text: `${name} heeft de chat betreden.`, at: Date.now() }, id);
     },
     message(ws, message) {
-      const clientId = ws.data.id;
+      const clientId = ws.data?.id;
       if (!clientId) return ws.close();
       const client = clientInfo.get(clientId);
       if (!client) return ws.close();
@@ -146,7 +146,7 @@ const server = Bun.serve<{ id?: string }>({
       }
     },
     close(ws) {
-      const clientId = ws.data.id;
+      const clientId = ws.data?.id;
       if (!clientId) return;
       const client = clientInfo.get(clientId);
       clients.delete(clientId);
