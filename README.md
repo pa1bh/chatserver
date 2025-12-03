@@ -21,3 +21,8 @@ bun --watch index.ts
 ```
 
 Deze setup is aangemaakt met `bun init` op Bun v1.0.0.
+
+## Routes
+
+- `/` - eenvoudige homepage.
+- `/status` - JSON met runtime-informatie (uptime, Bun-versie, env, port, memory, aantal requests sinds start).
