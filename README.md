@@ -33,7 +33,7 @@ bun run dev:ws
 - `HOST` (default `0.0.0.0`): Bind adres HTTP server.
 - `WS_PORT` (default `3001`): WebSocket server.
 - `WS_HOST`: optioneel hostnaam/IP voor de WebSocket URL (handig achter reverse proxy).
-- `WS_URL`: optioneel volledige WebSocket-URL; anders gebruikt de frontend de host uit het HTTP-verzoek + `WS_PORT`.
+- `WS_URL`: optioneel volledige WebSocket-URL; anders gebruikt de frontend de host uit het HTTP-verzoek + `WS_PORT` (handig voor LAN-clients zodat er niet naar `localhost` wordt verbonden).
 - `LOG_TARGET`: `stdout` (default) of `file`.
 - `LOG_FILE`: pad als `LOG_TARGET=file` of bij `--log=file:pad`.
 - CLI: `--log=stdout` of `--log=file:server.log` werkt op beide entrypoints.
