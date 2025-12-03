@@ -93,11 +93,16 @@ const server = Bun.serve<{ id?: string; ip?: string }>({
     open(ws) {
       const id = crypto.randomUUID();
       const name = `guest-${id.slice(0, 6)}`;
-      ws.data = { id, ip: (ws.data as any)?.ip };
+      const ip =
+        (ws.data as any)?.ip ||
+        ws.remoteAddress?.address ||
+        ws.remoteAddress?.hostname ||
+        "unknown";
+      ws.data = { id, ip };
       clients.set(id, ws);
-      if (ws.data.ip) clientIp.set(id, ws.data.ip);
+      if (ip) clientIp.set(id, ip);
       clientInfo.set(id, { id, name, connectedAt: Date.now() });
-      info("Nieuwe gebruiker verbonden", { id, name, ip: ws.data.ip });
+      info("Nieuwe gebruiker verbonden", { id, name, ip });
       send(ws, { type: "ackName", name, at: Date.now() });
       broadcast({ type: "system", text: `${name} heeft de chat betreden.`, at: Date.now() }, id);
     },
@@ -160,7 +165,7 @@ const server = Bun.serve<{ id?: string; ip?: string }>({
       const client = clientInfo.get(clientId);
       clients.delete(clientId);
       clientInfo.delete(clientId);
-      const ip = clientIp.get(clientId);
+      const ip = ws.data?.ip || clientIp.get(clientId);
       clientIp.delete(clientId);
       if (client) {
         broadcast({ type: "system", text: `${client.name} heeft de chat verlaten.`, at: Date.now() }, clientId);
