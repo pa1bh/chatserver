@@ -76,10 +76,14 @@ const buildStatus = () => ({
   messagesSent,
 });
 
-const server = Bun.serve<{ id?: string }>({
+const server = Bun.serve<{ id?: string; ip?: string }>({
   port,
   fetch(req, server) {
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() || req.remoteAddr?.hostname || "unknown";
+    const forwarded = req.headers.get("x-forwarded-for");
+    const ip =
+      forwarded?.split(",")[0].trim() ||
+      server.requestIP(req)?.address ||
+      "unknown";
     if (server.upgrade(req, { data: { ip } })) return undefined;
     return new Response("Upgrade Required", { status: 426 });
   },
