@@ -11,6 +11,10 @@ const saveNameBtn = qs("#saveName");
 const connectionStatus = qs("#connectionStatus");
 const nameBadge = qs("#nameBadge");
 const currentNameEl = qs("#currentName");
+const nameModal = qs("#nameModal");
+const closeNameBtn = qs("#closeName");
+const nameBadge = qs("#nameBadge");
+const currentNameEl = qs("#currentName");
 
 let socket;
 let currentName = "";
@@ -139,11 +143,30 @@ saveNameBtn?.addEventListener("click", () => {
   const name = nicknameInput.value.trim();
   if (!name) return appendMessage("error", "Voer een naam in om op te slaan.", "client");
   sendPayload({ type: "setName", name });
+  nameModal?.classList.add("hidden");
 });
 
-nameBadge?.addEventListener("click", () => {
+const openNameModal = () => {
+  nameModal?.classList.remove("hidden");
   nicknameInput?.focus();
   nicknameInput?.select();
+};
+
+const closeNameModal = () => {
+  nameModal?.classList.add("hidden");
+};
+
+nameBadge?.addEventListener("click", openNameModal);
+closeNameBtn?.addEventListener("click", closeNameModal);
+
+nicknameInput?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    saveNameBtn?.click();
+  }
+  if (event.key === "Escape") {
+    closeNameModal();
+  }
 });
 
 connect();

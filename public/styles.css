@@ -173,18 +173,7 @@ button:active {
 }
 
 .inline-name {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.inline-name input {
-  width: 120px;
-}
-
-.inline-name button {
-  width: 42px;
-  padding: 10px;
+  display: none;
 }
 
 .name-badge {
@@ -203,6 +192,58 @@ button:active {
 .name-edit {
   font-size: 12px;
   color: #475569;
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+}
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+}
+
+.modal-body {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  border-radius: 14px;
+  padding: 16px;
+  min-width: 280px;
+  max-width: 90vw;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal-body h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.modal-field {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.modal-field input {
+  flex: 1;
+}
+
+.secondary {
+  background: #e2e8f0;
+  color: #0f172a;
 }
 
 @media (max-width: 640px) {
@@ -226,8 +267,8 @@ button:active {
 
   .chat {
     padding: 8px;
-    min-height: calc(100vh - 180px);
-  }
+  min-height: calc(100vh - 200px);
+}
 
   .composer {
     gap: 8px;

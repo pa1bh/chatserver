@@ -20,14 +20,22 @@
       <section class="chat">
         <div id="messages" class="messages" aria-live="polite"></div>
         <form id="chatForm" class="composer">
-          <div class="inline-name">
-            <input id="nickname" type="text" placeholder="naam" maxlength="32" />
-            <button id="saveName" type="button" title="Sla naam op">💾</button>
-          </div>
           <input id="chatInput" type="text" placeholder="Typ een bericht of gebruik /status, /users, /name nieuwenaam" autocomplete="off" />
           <button type="submit" title="Verstuur">➔</button>
         </form>
       </section>
+
+      <div id="nameModal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-body">
+          <h2>Wijzig naam</h2>
+          <div class="modal-field">
+            <input id="nickname" type="text" placeholder="naam" maxlength="32" />
+            <button id="saveName" type="button" title="Sla naam op">Opslaan</button>
+          </div>
+          <button id="closeName" type="button" class="secondary">Sluiten</button>
+        </div>
+      </div>
     </main>
 
     <script src="/app.js" type="module"></script>
