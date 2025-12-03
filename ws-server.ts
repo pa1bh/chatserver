@@ -82,7 +82,9 @@ const server = Bun.serve<{ id?: string; ip?: string }>({
     const forwarded = req.headers.get("x-forwarded-for");
     const ip =
       forwarded?.split(",")[0].trim() ||
-      server.requestIP(req)?.address ||
+      req.headers.get("x-real-ip") ||
+      req.remoteAddr?.address ||
+      req.remoteAddr?.hostname ||
       "unknown";
     if (server.upgrade(req, { data: { ip } })) return undefined;
     return new Response("Upgrade Required", { status: 426 });
