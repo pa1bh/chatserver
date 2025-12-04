@@ -112,13 +112,8 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(addr)
         .await
         .expect("bind ws port");
-
     info!(port, "Rust WS server start");
-    axum::Server::from_tcp(listener)
-        .expect("server from tcp")
-        .serve(app)
-        .await
-        .expect("start ws server");
+    axum::serve(listener, app).await.expect("start ws server");
 }
 
 async fn ws_handler(
