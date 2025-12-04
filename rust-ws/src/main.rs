@@ -35,6 +35,7 @@ struct Client {
     name: String,
     ip: String,
     tx: mpsc::UnboundedSender<Message>,
+    #[allow(dead_code)]
     connected_at: SystemTime,
 }
 
@@ -52,7 +53,7 @@ enum Incoming {
 }
 
 #[derive(Debug, Serialize, Clone)]
-#[serde(tag = "type")]
+#[serde(tag = "type", rename_all = "camelCase")]
 enum Outgoing {
     #[serde(rename = "chat")]
     Chat { from: String, text: String, at: u128 },
