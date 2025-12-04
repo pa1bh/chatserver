@@ -111,6 +111,7 @@ async fn main() {
 
     info!(port, "Rust WS server start");
     Server::bind(&addr)
+        .http1_only(true)
         .serve(app)
         .await
         .expect("start ws server");
