@@ -82,7 +82,10 @@ struct UserInfo {
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
         .with_target(false)
         .init();
 
@@ -161,8 +164,10 @@ async fn handle_socket(state: AppState, socket: WebSocket, addr: SocketAddr) {
     while let Some(Ok(msg)) = receiver.next().await {
         match msg {
             Message::Text(text) => {
-                if let Err(err) = process_message(&state, id, &client, text).await {
-                    send_to_one(&client, &Outgoing::Error { message: err });
+                if let Err(err) = process_message(&state, id, text).await {
+                    if let Some(c) = state.clients.lock().await.get(&id).cloned() {
+                        send_to_one(&c, &Outgoing::Error { message: err });
+                    }
                 }
             }
             Message::Close(_) => break,
@@ -178,10 +183,14 @@ async fn handle_socket(state: AppState, socket: WebSocket, addr: SocketAddr) {
         let mut clients = state.clients.lock().await;
         clients.remove(&id);
     }
+    let latest_name = {
+        let clients = state.clients.lock().await;
+        clients.get(&id).map(|c| c.name.clone()).unwrap_or(name)
+    };
     broadcast(
         &state,
         &Outgoing::System {
-            text: format!("{} heeft de chat verlaten.", name),
+            text: format!("{} heeft de chat verlaten.", latest_name),
             at: now_ms(),
         },
         Some(id),
@@ -192,7 +201,7 @@ async fn handle_socket(state: AppState, socket: WebSocket, addr: SocketAddr) {
     info!(id = %id, name = %name, ip = %addr.ip(), "Client disconnected");
 }
 
-async fn process_message(state: &AppState, id: Uuid, client: &Client, text: String) -> Result<(), String> {
+async fn process_message(state: &AppState, id: Uuid, text: String) -> Result<(), String> {
     let incoming: Incoming = serde_json::from_str(&text).map_err(|_| "Bericht moet geldig JSON zijn.".to_string())?;
 
     match incoming {
@@ -204,18 +213,24 @@ async fn process_message(state: &AppState, id: Uuid, client: &Client, text: Stri
             if trimmed.len() > 500 {
                 return Err("Bericht is te lang (max 500 tekens).".into());
             }
+            let (name, ip) = {
+                let clients = state.clients.lock().await;
+                let entry = clients.get(&id).ok_or_else(|| "Onbekende gebruiker".to_string())?;
+                (entry.name.clone(), entry.ip.clone())
+            };
+
             state.messages_sent.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             broadcast(
                 state,
                 &Outgoing::Chat {
-                    from: client.name.clone(),
+                    from: name.clone(),
                     text: trimmed.to_string(),
                     at: now_ms(),
                 },
                 None,
             )
             .await;
-            info!(from = %client.name, id = %id, ip = %client.ip, "Bericht verzonden");
+            info!(from = %name, id = %id, ip = %ip, "Bericht verzonden");
         }
         Incoming::SetName { name } => {
             let trimmed = name.trim();
@@ -245,14 +260,16 @@ async fn process_message(state: &AppState, id: Uuid, client: &Client, text: Stri
             let uptime = state.started_at.elapsed().as_secs_f64();
             let count = state.clients.lock().await.len();
             let messages = state.messages_sent.load(std::sync::atomic::Ordering::Relaxed);
-            send_to_one(
-                client,
-                &Outgoing::Status {
-                    uptimeSeconds: uptime,
-                    userCount: count,
-                    messagesSent: messages,
-                },
-            );
+            if let Some(entry) = state.clients.lock().await.get(&id).cloned() {
+                send_to_one(
+                    &entry,
+                    &Outgoing::Status {
+                        uptimeSeconds: uptime,
+                        userCount: count,
+                        messagesSent: messages,
+                    },
+                );
+            }
         }
         Incoming::ListUsers => {
             let users = state
@@ -265,7 +282,9 @@ async fn process_message(state: &AppState, id: Uuid, client: &Client, text: Stri
                     name: c.name.clone(),
                 })
                 .collect::<Vec<_>>();
-            send_to_one(client, &Outgoing::ListUsers { users });
+            if let Some(entry) = state.clients.lock().await.get(&id).cloned() {
+                send_to_one(&entry, &Outgoing::ListUsers { users });
+            }
         }
     }
 
