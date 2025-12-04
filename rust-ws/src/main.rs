@@ -109,8 +109,8 @@ async fn main() {
         .into_make_service_with_connect_info::<SocketAddr>();
 
     info!(port, "Rust WS server start");
-    info!(port, "Rust WS server start");
     axum::Server::bind(&addr)
+        .http1_only(true)
         .serve(app)
         .await
         .expect("start ws server");
