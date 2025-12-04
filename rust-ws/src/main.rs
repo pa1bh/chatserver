@@ -13,7 +13,6 @@ use axum::{
     response::IntoResponse,
     routing::get,
     Router,
-    Server,
 };
 use futures::{stream::StreamExt, SinkExt};
 use serde::{Deserialize, Serialize};
@@ -115,7 +114,9 @@ async fn main() {
         .expect("bind ws port");
 
     info!(port, "Rust WS server start");
-    axum::serve(listener, app)
+    axum::Server::from_tcp(listener)
+        .expect("server from tcp")
+        .serve(app)
         .await
         .expect("start ws server");
 }
