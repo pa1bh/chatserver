@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     net::SocketAddr,
-    sync::{Arc},
+    sync::{Arc, atomic::AtomicU64},
     time::{Instant, SystemTime},
 };
 
@@ -13,11 +13,12 @@ use axum::{
     response::IntoResponse,
     routing::get,
     Router,
+    Server,
 };
 use futures::{stream::StreamExt, SinkExt};
 use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc, Mutex};
-use tracing::{error, info};
+use tracing::info;
 use uuid::Uuid;
 
 type Clients = Arc<Mutex<HashMap<Uuid, Client>>>;
@@ -26,7 +27,7 @@ type Clients = Arc<Mutex<HashMap<Uuid, Client>>>;
 struct AppState {
     clients: Clients,
     started_at: Instant,
-    messages_sent: Arc<tokio::sync::atomic::AtomicU64>,
+    messages_sent: Arc<AtomicU64>,
 }
 
 #[derive(Clone)]
@@ -93,7 +94,7 @@ async fn main() {
     let state = AppState {
         clients: Arc::new(Mutex::new(HashMap::new())),
         started_at: Instant::now(),
-        messages_sent: Arc::new(tokio::sync::atomic::AtomicU64::new(0)),
+        messages_sent: Arc::new(AtomicU64::new(0)),
     };
 
     let app = Router::new()
@@ -101,11 +102,11 @@ async fn main() {
         .with_state(state.clone())
         .into_make_service_with_connect_info::<SocketAddr>();
 
-    info!("Rust WS server start", { port = port });
-    let listener = tokio::net::TcpListener::bind(addr)
+    info!(port, "Rust WS server start");
+    Server::bind(&addr)
+        .serve(app)
         .await
-        .expect("bind ws port");
-    axum::serve(listener, app).await.expect("start ws server");
+        .expect("start ws server");
 }
 
 async fn ws_handler(
@@ -143,7 +144,7 @@ async fn handle_socket(state: AppState, socket: WebSocket, addr: SocketAddr) {
         clients.insert(id, client.clone());
     }
 
-    info!("Client connected"; "id" => id.to_string(), "name" => name.clone(), "ip" => addr.ip().to_string());
+    info!(id = %id, name = %name, ip = %addr.ip(), "Client connected");
     send_to_one(&client, &Outgoing::AckName { name: name.clone(), at: now_ms() });
     broadcast(
         &state,
@@ -187,7 +188,7 @@ async fn handle_socket(state: AppState, socket: WebSocket, addr: SocketAddr) {
     .await;
 
     send_task.abort();
-    info!("Client disconnected"; "id" => id.to_string(), "name" => name, "ip" => addr.ip().to_string());
+    info!(id = %id, name = %name, ip = %addr.ip(), "Client disconnected");
 }
 
 async fn process_message(state: &AppState, id: Uuid, client: &Client, text: String) -> Result<(), String> {
@@ -213,7 +214,7 @@ async fn process_message(state: &AppState, id: Uuid, client: &Client, text: Stri
                 None,
             )
             .await;
-            info!("Bericht verzonden"; "from" => client.name.clone(), "id" => id.to_string(), "ip" => client.ip.clone());
+            info!(from = %client.name, id = %id, ip = %client.ip, "Bericht verzonden");
         }
         Incoming::SetName { name } => {
             let trimmed = name.trim();
@@ -235,7 +236,7 @@ async fn process_message(state: &AppState, id: Uuid, client: &Client, text: Stri
                         Some(id),
                     )
                     .await;
-                    info!("Gebruikersnaam gewijzigd"; "old" => old, "new" => entry.name.clone(), "id" => id.to_string(), "ip" => entry.ip.clone());
+                    info!(old = %old, new = %entry.name, id = %id, ip = %entry.ip, "Gebruikersnaam gewijzigd");
                 }
             }
         }
