@@ -24,6 +24,12 @@ const setStatus = (text, tone = "info") => {
   connectionStatus.style.color = tone === "error" ? "#9f1239" : tone === "warn" ? "#854d0e" : "#312e81";
 };
 
+const scrollToBottom = () => {
+  requestAnimationFrame(() => {
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  });
+};
+
 const appendMessage = (type, text, meta = "", isMine = false) => {
   const item = document.createElement("div");
   item.className = `msg ${type} ${isMine ? "mine" : ""}`;
@@ -35,9 +41,7 @@ const appendMessage = (type, text, meta = "", isMine = false) => {
   item.appendChild(metaEl);
   item.appendChild(body);
   messagesEl.appendChild(item);
-  requestAnimationFrame(() => {
-    messagesEl.scrollTo({ top: messagesEl.scrollHeight, behavior: "smooth" });
-  });
+  scrollToBottom();
 };
 
 const sendPayload = (payload) => {
@@ -193,3 +197,15 @@ nicknameInput?.addEventListener("keydown", (event) => {
 });
 
 connect();
+
+// iOS keyboard handling: scroll to bottom when keyboard appears
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", () => {
+    scrollToBottom();
+  });
+}
+
+// Also scroll when input is focused (keyboard appears)
+input?.addEventListener("focus", () => {
+  setTimeout(scrollToBottom, 300);
+});

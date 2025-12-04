@@ -10,17 +10,21 @@
 body {
   margin: 0;
   min-height: 100vh;
-  overflow-y: auto;
+  min-height: 100dvh; /* Dynamic viewport height - adjusts for iOS keyboard */
+  overflow: hidden; /* Prevent body scroll, let messages scroll */
 }
 
 .page {
   max-width: 900px;
   margin: 0 auto;
-  padding: 16px 12px 24px;
-  min-height: 100vh;
+  padding: 16px 12px 0;
+  padding-top: max(16px, env(safe-area-inset-top));
+  height: 100vh;
+  height: 100dvh; /* Dynamic viewport height */
   display: flex;
   flex-direction: column;
   gap: 16px;
+  overflow: hidden;
 }
 
 .header {
@@ -84,27 +88,30 @@ button:active {
 .chat {
   background: #fff;
   border: 1px solid #e2e8f0;
-  border-radius: 14px;
+  border-radius: 14px 14px 0 0;
   padding: 10px;
+  padding-bottom: 0;
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  overflow: visible;
+  overflow: hidden;
   position: relative;
-  gap: 8px;
 }
 
 .messages {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
   padding: 6px;
+  padding-bottom: 12px;
   display: flex;
   flex-direction: column;
   gap: 10px;
   overscroll-behavior: contain;
-  padding-bottom: 72px;
+  scroll-behavior: smooth;
 }
 
 .messages::-webkit-scrollbar {
@@ -154,15 +161,12 @@ button:active {
 .composer {
   display: flex;
   gap: 10px;
-  margin-top: 12px;
-  position: sticky;
-  bottom: 0;
+  flex-shrink: 0;
   z-index: 2;
   background: #fff;
-  padding-top: 12px;
-  padding-bottom: 12px;
+  padding: 12px 10px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
   border-top: 1px solid #e2e8f0;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .composer input {
@@ -252,31 +256,29 @@ button:active {
   .header {
     flex-direction: row;
     align-items: center;
+    flex-shrink: 0;
   }
 
   .page {
-    padding: 10px 10px 12px;
-    gap: 12px;
-  }
-
-  h1 {
-    font-size: 20px;
-  }
-
-  .subtitle {
-    font-size: 12px;
+    padding: 10px 10px 0;
+    padding-top: max(10px, env(safe-area-inset-top));
+    gap: 10px;
   }
 
   .chat {
     padding: 8px;
-  min-height: calc(100vh - 200px);
-}
+    padding-bottom: 0;
+    border-radius: 12px 12px 0 0;
+  }
+
+  .messages {
+    padding: 4px;
+    padding-bottom: 8px;
+  }
 
   .composer {
     gap: 8px;
-  }
-
-  .inline-name input {
-    width: 100px;
+    padding: 10px 8px;
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
   }
 }
