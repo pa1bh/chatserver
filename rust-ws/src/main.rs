@@ -4,6 +4,7 @@ use std::{
     sync::{Arc, atomic::AtomicU64},
     time::{Instant, SystemTime},
 };
+use sysinfo::{Pid, System};
 
 use axum::{
     extract::{
@@ -17,7 +18,7 @@ use axum::{
 use futures::{stream::StreamExt, SinkExt};
 use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc, Mutex};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
 use uuid::Uuid;
 
 type Clients = Arc<Mutex<HashMap<Uuid, Client>>>;
@@ -63,11 +64,15 @@ enum Outgoing {
     #[serde(rename = "status")]
     Status {
         #[serde(rename = "uptimeSeconds")]
-        uptime_seconds: f64,
+        uptime_seconds: u64,
         #[serde(rename = "userCount")]
         user_count: usize,
         #[serde(rename = "messagesSent")]
         messages_sent: u64,
+        #[serde(rename = "messagesPerSecond")]
+        messages_per_second: f64,
+        #[serde(rename = "memoryMb")]
+        memory_mb: f64,
     },
     #[serde(rename = "listUsers")]
     ListUsers { users: Vec<UserInfo> },
@@ -79,6 +84,7 @@ enum Outgoing {
 struct UserInfo {
     id: String,
     name: String,
+    ip: String,
 }
 
 #[tokio::main]
@@ -276,16 +282,34 @@ async fn process_message(state: &AppState, id: Uuid, text: String) -> Result<(),
             }
         }
         Incoming::Status => {
-            let uptime = state.started_at.elapsed().as_secs_f64();
+            let uptime_secs = state.started_at.elapsed().as_secs();
             let count = state.clients.lock().await.len();
             let messages = state.messages_sent.load(std::sync::atomic::Ordering::Relaxed);
+            let msgs_per_sec = if uptime_secs > 0 {
+                messages as f64 / uptime_secs as f64
+            } else {
+                0.0
+            };
+
+            // Get memory usage
+            let memory_mb = {
+                let mut sys = System::new();
+                let pid = Pid::from_u32(std::process::id());
+                sys.refresh_process(pid);
+                sys.process(pid)
+                    .map(|p| p.memory() as f64 / 1024.0 / 1024.0)
+                    .unwrap_or(0.0)
+            };
+
             if let Some(entry) = state.clients.lock().await.get(&id).cloned() {
                 send_to_one(
                     &entry,
                     &Outgoing::Status {
-                        uptime_seconds: uptime,
+                        uptime_seconds: uptime_secs,
                         user_count: count,
                         messages_sent: messages,
+                        messages_per_second: (msgs_per_sec * 100.0).round() / 100.0,
+                        memory_mb: (memory_mb * 100.0).round() / 100.0,
                     },
                 );
             }
@@ -299,6 +323,7 @@ async fn process_message(state: &AppState, id: Uuid, text: String) -> Result<(),
                 .map(|(id, c)| UserInfo {
                     id: id.to_string(),
                     name: c.name.clone(),
+                    ip: c.ip.clone(),
                 })
                 .collect::<Vec<_>>();
             if let Some(entry) = state.clients.lock().await.get(&id).cloned() {

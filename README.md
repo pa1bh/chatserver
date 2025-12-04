@@ -52,9 +52,11 @@ bun run dev:ws
   - `chat` `{ from, text, at }`
   - `system` `{ text, at }`
   - `ackName` `{ name, at }`
-  - `status` `{ uptimeSeconds, userCount, messagesSent }`
-  - `listUsers` `{ users: [{ id, name }] }`
+  - `status` `{ uptimeSeconds, userCount, messagesSent, messagesPerSecond, memoryMb }` ¹
+  - `listUsers` `{ users: [{ id, name, ip }] }` ¹
   - `error` `{ message }`
+
+¹ Rust backend only: `messagesPerSecond`, `memoryMb`, en `ip` velden
 
 ## Frontend commands
 - `/name nieuwe_naam` — wijzig gebruikersnaam.
