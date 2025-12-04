@@ -18,7 +18,7 @@ use axum::{
 use futures::{stream::StreamExt, SinkExt};
 use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc, Mutex};
-use tracing::info;
+use tracing::{error, info};
 use uuid::Uuid;
 
 type Clients = Arc<Mutex<HashMap<Uuid, Client>>>;
@@ -110,9 +110,12 @@ async fn main() {
         .into_make_service_with_connect_info::<SocketAddr>();
 
     info!(port, "Rust WS server start");
-    Server::bind(&addr)
-        .http1_only(true)
-        .serve(app)
+    let listener = tokio::net::TcpListener::bind(addr)
+        .await
+        .expect("bind ws port");
+
+    info!(port, "Rust WS server start");
+    axum::serve(listener, app)
         .await
         .expect("start ws server");
 }
@@ -134,10 +137,12 @@ async fn handle_socket(state: AppState, socket: WebSocket, addr: SocketAddr) {
     // Send loop
     let send_task = tokio::spawn(async move {
         while let Some(msg) = rx.recv().await {
-            if sender.send(msg).await.is_err() {
+            if let Err(err) = sender.send(msg).await {
+                error!(?err, "WS send loop stopped");
                 break;
             }
         }
+        info!("WS send loop finished");
     });
 
     let client = Client {
@@ -165,8 +170,15 @@ async fn handle_socket(state: AppState, socket: WebSocket, addr: SocketAddr) {
     .await;
 
     // Receive loop
-    while let Some(Ok(msg)) = receiver.next().await {
+    while let Some(msg) = receiver.next().await {
         info!(id = %id, raw = ?msg, "Ontvangen WS bericht");
+        let msg = match msg {
+            Ok(m) => m,
+            Err(err) => {
+                error!(id = %id, ?err, "WS receive error");
+                break;
+            }
+        };
         match msg {
             Message::Text(text) => {
                 if let Err(err) = process_message(&state, id, text).await {
@@ -300,18 +312,22 @@ async fn broadcast(state: &AppState, payload: &Outgoing, except: Option<Uuid>) {
     let text = serde_json::to_string(payload).unwrap_or_else(|_| "{\"type\":\"error\",\"message\":\"serialize\"}".into());
     let clients = state.clients.lock().await;
     let targets = clients.len();
-    info!(targets, except = ?except, "Broadcast payload");
+    info!(targets, except = ?except, kind = %payload_kind(payload), "Broadcast payload");
     for (id, client) in clients.iter() {
         if except.is_some() && except.unwrap() == *id {
             continue;
         }
-        let _ = client.tx.send(Message::Text(text.clone()));
+        if let Err(err) = client.tx.send(Message::Text(text.clone())) {
+            error!(id = %id, ?err, "Send to client failed");
+        }
     }
 }
 
 fn send_to_one(client: &Client, payload: &Outgoing) {
     if let Ok(text) = serde_json::to_string(payload) {
-        let _ = client.tx.send(Message::Text(text));
+        if let Err(err) = client.tx.send(Message::Text(text)) {
+            error!(name = %client.name, ip = %client.ip, ?err, "Send to single client failed");
+        }
     }
 }
 
@@ -320,4 +336,15 @@ fn now_ms() -> u128 {
         .duration_since(SystemTime::UNIX_EPOCH)
         .map(|d| d.as_millis())
         .unwrap_or(0)
+}
+
+fn payload_kind(payload: &Outgoing) -> &'static str {
+    match payload {
+        Outgoing::Chat { .. } => "chat",
+        Outgoing::System { .. } => "system",
+        Outgoing::AckName { .. } => "ackName",
+        Outgoing::Status { .. } => "status",
+        Outgoing::ListUsers { .. } => "listUsers",
+        Outgoing::Error { .. } => "error",
+    }
 }
