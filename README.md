@@ -80,8 +80,18 @@ cargo build --release    # optioneel: release build
 cargo run                # start op WS_PORT (default 3001)
 ```
 
-Met debug logging:
+### Logging
+
+Standaard is logging uitgeschakeld voor maximale performance. Gebruik `RUST_LOG` om logging in te schakelen:
+
 ```bash
+# Geen logging (default) — voor benchmarks en productie
+cargo run
+
+# Info level: startup, connect/disconnect events
+RUST_LOG=info cargo run
+
+# Debug level: alle berichten en broadcasts
 RUST_LOG=debug cargo run
 ```
 
@@ -160,23 +170,27 @@ De benchmark toont:
 - Throughput (msg/s)
 - Latency statistieken (average, P50, P95, P99)
 
-Voorbeeld
+#### Voorbeeld test
+```bash
+bun run tools/ws-benchmark-async.ts --clients=200 --rate=600 --duration=60
+```
+
 rust backend
 ```bash
 ═══════════════════════════════════════
 Results
 ═══════════════════════════════════════
-Clients connected:  0/50
-Messages sent:      5964
-Messages received:  302073
+Clients connected:  200/200
+Messages sent:      115516
+Messages received:  23152470
 Errors:             0
-Throughput:         99.4 msg/s
+Throughput:         1925.3 msg/s
 
 Latency (ms):
-Average:  2.70
-P50:      2.00
-P95:      8.00
-P99:      14.00
+  Average:  2.67
+  P50:      2.00
+  P95:      5.00
+  P99:      7.00
 ═══════════════════════════════════════
 ```
 
@@ -185,16 +199,16 @@ Bun backend
 ═══════════════════════════════════════
 Results
 ═══════════════════════════════════════
-Clients connected:  0/50
-Messages sent:      5937
-Messages received:  301279
+Clients connected:  200/200
+Messages sent:      115568
+Messages received:  15955826
 Errors:             0
-Throughput:         99.0 msg/s
+Throughput:         1926.1 msg/s
 
 Latency (ms):
-  Average:  5.36
-  P50:      4.00
-  P95:      13.00
-  P99:      19.00
+  Average:  7594.50
+  P50:      5248.00
+  P95:      22254.00
+  P99:      27827.00
 ═══════════════════════════════════════
 ```

@@ -17,7 +17,7 @@ use axum::{
 use futures::{stream::StreamExt, SinkExt};
 use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc, Mutex};
-use tracing::{error, info};
+use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
 type Clients = Arc<Mutex<HashMap<Uuid, Client>>>;
@@ -83,10 +83,11 @@ struct UserInfo {
 
 #[tokio::main]
 async fn main() {
+    // Default: no logging (warn level). Use RUST_LOG=info or RUST_LOG=debug for output.
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("warn")),
         )
         .with_target(false)
         .init();
@@ -138,7 +139,7 @@ async fn handle_socket(state: AppState, socket: WebSocket, addr: SocketAddr) {
                 break;
             }
         }
-        info!("WS send loop finished");
+        debug!("WS send loop finished");
     });
 
     let client = Client {
@@ -167,7 +168,7 @@ async fn handle_socket(state: AppState, socket: WebSocket, addr: SocketAddr) {
 
     // Receive loop
     while let Some(msg) = receiver.next().await {
-        info!(id = %id, raw = ?msg, "Ontvangen WS bericht");
+        debug!(id = %id, raw = ?msg, "Ontvangen WS bericht");
         let msg = match msg {
             Ok(m) => m,
             Err(err) => {
@@ -243,7 +244,7 @@ async fn process_message(state: &AppState, id: Uuid, text: String) -> Result<(),
                 None,
             )
             .await;
-            info!(from = %name, id = %id, ip = %ip, "Bericht verzonden");
+            debug!(from = %name, id = %id, ip = %ip, "Bericht verzonden");
         }
         Incoming::SetName { name } => {
             let trimmed = name.trim();
@@ -271,7 +272,7 @@ async fn process_message(state: &AppState, id: Uuid, text: String) -> Result<(),
                     Some(id),
                 )
                 .await;
-                info!(old = %old, new = %new_name, id = %id, ip = %ip, "Gebruikersnaam gewijzigd");
+                debug!(old = %old, new = %new_name, id = %id, ip = %ip, "Gebruikersnaam gewijzigd");
             }
         }
         Incoming::Status => {
@@ -313,7 +314,7 @@ async fn broadcast(state: &AppState, payload: &Outgoing, except: Option<Uuid>) {
     let text = serde_json::to_string(payload).unwrap_or_else(|_| "{\"type\":\"error\",\"message\":\"serialize\"}".into());
     let clients = state.clients.lock().await;
     let targets = clients.len();
-    info!(targets, except = ?except, kind = %payload_kind(payload), "Broadcast payload");
+    debug!(targets, except = ?except, kind = %payload_kind(payload), "Broadcast payload");
     for (id, client) in clients.iter() {
         if except.is_some() && except.unwrap() == *id {
             continue;
