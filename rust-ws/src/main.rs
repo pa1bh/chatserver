@@ -63,8 +63,11 @@ enum Outgoing {
     AckName { name: String, at: u128 },
     #[serde(rename = "status")]
     Status {
+        #[allow(non_snake_case)]
         uptimeSeconds: f64,
+        #[allow(non_snake_case)]
         userCount: usize,
+        #[allow(non_snake_case)]
         messagesSent: u64,
     },
     #[serde(rename = "listUsers")]
@@ -162,6 +165,7 @@ async fn handle_socket(state: AppState, socket: WebSocket, addr: SocketAddr) {
 
     // Receive loop
     while let Some(Ok(msg)) = receiver.next().await {
+        info!(id = %id, raw = ?msg, "Ontvangen WS bericht");
         match msg {
             Message::Text(text) => {
                 if let Err(err) = process_message(&state, id, text).await {
