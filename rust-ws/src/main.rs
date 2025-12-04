@@ -250,23 +250,28 @@ async fn process_message(state: &AppState, id: Uuid, text: String) -> Result<(),
             if trimmed.len() < 2 || trimmed.len() > 32 {
                 return Err("Naam moet tussen 2 en 32 tekens zijn.".into());
             }
-            {
+            let rename_info = {
                 let mut clients = state.clients.lock().await;
                 if let Some(entry) = clients.get_mut(&id) {
                     let old = entry.name.clone();
                     entry.name = trimmed.to_string();
                     send_to_one(entry, &Outgoing::AckName { name: entry.name.clone(), at: now_ms() });
-                    broadcast(
-                        state,
-                        &Outgoing::System {
-                            text: format!("{old} heet nu {}.", entry.name),
-                            at: now_ms(),
-                        },
-                        Some(id),
-                    )
-                    .await;
-                    info!(old = %old, new = %entry.name, id = %id, ip = %entry.ip, "Gebruikersnaam gewijzigd");
+                    Some((old, entry.name.clone(), entry.ip.clone()))
+                } else {
+                    None
                 }
+            };
+            if let Some((old, new_name, ip)) = rename_info {
+                broadcast(
+                    state,
+                    &Outgoing::System {
+                        text: format!("{old} heet nu {new_name}."),
+                        at: now_ms(),
+                    },
+                    Some(id),
+                )
+                .await;
+                info!(old = %old, new = %new_name, id = %id, ip = %ip, "Gebruikersnaam gewijzigd");
             }
         }
         Incoming::Status => {
