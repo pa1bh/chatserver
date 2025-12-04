@@ -13,10 +13,21 @@ const nameBadge = qs("#nameBadge");
 const currentNameEl = qs("#currentName");
 const nameModal = qs("#nameModal");
 const closeNameBtn = qs("#closeName");
+const composerName = qs("#composerName");
+const composerNameText = qs("#composerNameText");
 
 let socket;
 let currentName = "";
 let reconnectTimeout;
+
+const getInitials = (name) => {
+  if (!name) return "?";
+  const parts = name.trim().split(/[-_\s]+/);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return name.slice(0, 2).toUpperCase();
+};
 
 const setStatus = (text, tone = "info") => {
   connectionStatus.textContent = text;
@@ -89,6 +100,7 @@ const handleMessage = (event) => {
       currentName = payload.name;
       nicknameInput.value = payload.name;
       if (currentNameEl) currentNameEl.textContent = payload.name;
+      if (composerNameText) composerNameText.textContent = getInitials(payload.name);
       appendMessage("system", `Je heet nu ${payload.name}.`, new Date(payload.at).toLocaleTimeString());
       break;
     case "status": {
@@ -184,6 +196,7 @@ const closeNameModal = () => {
 };
 
 nameBadge?.addEventListener("click", openNameModal);
+composerName?.addEventListener("click", openNameModal);
 closeNameBtn?.addEventListener("click", closeNameModal);
 
 nicknameInput?.addEventListener("keydown", (event) => {

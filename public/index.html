@@ -20,7 +20,10 @@
       <section class="chat">
         <div id="messages" class="messages" aria-live="polite"></div>
         <form id="chatForm" class="composer">
-          <input id="chatInput" type="text" placeholder="Typ een bericht of gebruik /status, /users, /name nieuwenaam" autocomplete="off" />
+          <button type="button" class="composer-name" id="composerName" title="Wijzig naam">
+            <span class="composer-name-text" id="composerNameText">?</span>
+          </button>
+          <input id="chatInput" type="text" placeholder="Bericht of /status /users /name" autocomplete="off" />
           <button type="submit" title="Verstuur">➔</button>
         </form>
       </section>
