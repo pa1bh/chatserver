@@ -63,3 +63,14 @@ bun run dev:ws
 
 ## Logging
 Logging gaat naar stdout tenzij `LOG_TARGET=file` of `--log=file:pad` is gezet. Backend logt join/leave/bericht events; HTTP logt startinfo.
+
+## Alternatieve WS backend (Rust)
+- Locatie: `rust-ws/`.
+- Protocol: dezelfde JSON payloads als de Bun/TS backend, dus de bestaande frontend werkt door.
+- Vereisten: Rust + Cargo.
+- Run:
+  ```bash
+  cd rust-ws
+  cargo run  # gebruikt WS_PORT (default 3001)
+  ```
+- Stel desnoods `WS_URL` in je HTTP server of `.env` zodat de frontend naar deze instantie wijst (bijv. `ws://<server>:3001`), anders de standaard host + `WS_PORT` gebruiken.
