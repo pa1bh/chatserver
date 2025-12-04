@@ -122,14 +122,18 @@ De regels zonder `$` prefix zijn server responses; regels die je zelf typt zijn 
 
 Stress test tool om de Bun/TS en Rust backends te vergelijken. Gebruikt Bun Worker threads voor realistische concurrent clients.
 
+Er zijn twee versies:
+- `ws-benchmark.ts` — Worker threads (realistischer, maar max ~100 clients door Bun bug)
+- `ws-benchmark-async.ts` — Async in één process (stabieler voor hoge loads)
+
 ### Gebruik
 
 ```bash
-# Standaard: 10 clients, 60 msg/min/client, 30 seconden
-bun run tools/ws-benchmark.ts
-
-# Custom configuratie
+# Worker versie (tot ~100 clients)
 bun run tools/ws-benchmark.ts --clients=50 --rate=120 --duration=60
+
+# Async versie (voor 100+ clients)
+bun run tools/ws-benchmark-async.ts --clients=200 --rate=600 --duration=60
 
 # Tegen specifieke URL
 bun run tools/ws-benchmark.ts --url=ws://192.168.0.80:3001
@@ -143,7 +147,7 @@ bun run tools/ws-benchmark.ts --quiet
 | Optie | Default | Beschrijving |
 |-------|---------|--------------|
 | `--url` | `ws://127.0.0.1:3001` | WebSocket server URL |
-| `--clients` | `10` | Aantal concurrent clients (als Worker threads) |
+| `--clients` | `10` | Aantal concurrent clients |
 | `--rate` | `60` | Berichten per minuut per client |
 | `--duration` | `30` | Testduur in seconden |
 | `--quiet` | `false` | Alleen eindresultaten tonen |
@@ -155,3 +159,42 @@ De benchmark toont:
 - Totaal verzonden/ontvangen berichten
 - Throughput (msg/s)
 - Latency statistieken (average, P50, P95, P99)
+
+Voorbeeld
+rust backend
+```bash
+═══════════════════════════════════════
+Results
+═══════════════════════════════════════
+Clients connected:  0/50
+Messages sent:      5964
+Messages received:  302073
+Errors:             0
+Throughput:         99.4 msg/s
+
+Latency (ms):
+Average:  2.70
+P50:      2.00
+P95:      8.00
+P99:      14.00
+═══════════════════════════════════════
+```
+
+Bun backend
+```bash
+═══════════════════════════════════════
+Results
+═══════════════════════════════════════
+Clients connected:  0/50
+Messages sent:      5937
+Messages received:  301279
+Errors:             0
+Throughput:         99.0 msg/s
+
+Latency (ms):
+  Average:  5.36
+  P50:      4.00
+  P95:      13.00
+  P99:      19.00
+═══════════════════════════════════════
+```

@@ -63,31 +63,43 @@ Duration:   ${config.duration}s
 ═══════════════════════════════════════
 `);
 
-// Spawn workers
-for (let i = 0; i < config.clients; i++) {
-  const worker = new Worker(new URL("./ws-benchmark-worker.ts", import.meta.url).href);
+// Spawn workers in batches to avoid Bun runtime crash
+const BATCH_SIZE = 20;
+const BATCH_DELAY_MS = 50;
 
-  worker.postMessage({
-    workerId: i,
-    url: config.url,
-    rate: config.rate,
-    duration: config.duration,
-  });
+async function spawnWorkers() {
+  for (let i = 0; i < config.clients; i++) {
+    const worker = new Worker(new URL("./ws-benchmark-worker.ts", import.meta.url).href);
 
-  worker.onmessage = (event: MessageEvent<WorkerMessage>) => {
-    const msg = event.data;
+    worker.postMessage({
+      workerId: i,
+      url: config.url,
+      rate: config.rate,
+      duration: config.duration,
+    });
 
-    if (msg.type === "log" && !config.quiet) {
-      console.log(`[Worker ${msg.workerId}] ${msg.message}`);
-    } else if (msg.type === "stats" && msg.stats) {
-      stats[msg.workerId] = msg.stats;
-    } else if (msg.type === "done") {
-      worker.terminate();
+    worker.onmessage = (event: MessageEvent<WorkerMessage>) => {
+      const msg = event.data;
+
+      if (msg.type === "log" && !config.quiet) {
+        console.log(`[Worker ${msg.workerId}] ${msg.message}`);
+      } else if (msg.type === "stats" && msg.stats) {
+        stats[msg.workerId] = msg.stats;
+      } else if (msg.type === "done") {
+        worker.terminate();
+      }
+    };
+
+    workers.push(worker);
+
+    // Stagger worker spawns to avoid overwhelming Bun's runtime
+    if ((i + 1) % BATCH_SIZE === 0 && i < config.clients - 1) {
+      await Bun.sleep(BATCH_DELAY_MS);
     }
-  };
-
-  workers.push(worker);
+  }
 }
+
+await spawnWorkers();
 
 // Progress indicator
 const startTime = Date.now();
