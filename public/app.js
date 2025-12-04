@@ -87,12 +87,35 @@ const handleMessage = (event) => {
       if (currentNameEl) currentNameEl.textContent = payload.name;
       appendMessage("system", `Je heet nu ${payload.name}.`, new Date(payload.at).toLocaleTimeString());
       break;
-    case "status":
-      appendMessage("system", `Status: users=${payload.userCount}, uptime=${payload.uptimeSeconds}s, msgs=${payload.messagesSent}`, "server");
+    case "status": {
+      const parts = [
+        `users: ${payload.userCount}`,
+        `uptime: ${payload.uptimeSeconds}s`,
+        `msgs: ${payload.messagesSent}`,
+      ];
+      if (payload.messagesPerSecond !== undefined) {
+        parts.push(`msg/s: ${payload.messagesPerSecond}`);
+      }
+      if (payload.memoryMb !== undefined) {
+        parts.push(`mem: ${payload.memoryMb} MB`);
+      }
+      appendMessage("system", `Status: ${parts.join(" | ")}`, "server");
       break;
-    case "listUsers":
-      appendMessage("system", `Gebruikers: ${payload.users.map((u) => u.name).join(", ") || "niemand"}`, "server");
+    }
+    case "listUsers": {
+      if (!payload.users?.length) {
+        appendMessage("system", "Geen gebruikers online.", "server");
+      } else {
+        const lines = payload.users.map((u) => {
+          const info = [u.name];
+          if (u.ip) info.push(`ip: ${u.ip}`);
+          info.push(`id: ${u.id.slice(0, 8)}...`);
+          return info.join(" | ");
+        });
+        appendMessage("system", `Gebruikers (${payload.users.length}):\n${lines.join("\n")}`, "server");
+      }
       break;
+    }
     case "error":
       appendMessage("error", payload.message, "server");
       break;

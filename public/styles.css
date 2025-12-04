@@ -143,6 +143,7 @@ button:active {
 .msg.system {
   background: #ecfeff;
   border-color: #67e8f9;
+  white-space: pre-line;
 }
 
 .msg.error {
