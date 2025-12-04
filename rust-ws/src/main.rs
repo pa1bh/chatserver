@@ -63,12 +63,12 @@ enum Outgoing {
     AckName { name: String, at: u128 },
     #[serde(rename = "status")]
     Status {
-        #[allow(non_snake_case)]
-        uptimeSeconds: f64,
-        #[allow(non_snake_case)]
-        userCount: usize,
-        #[allow(non_snake_case)]
-        messagesSent: u64,
+        #[serde(rename = "uptimeSeconds")]
+        uptime_seconds: f64,
+        #[serde(rename = "userCount")]
+        user_count: usize,
+        #[serde(rename = "messagesSent")]
+        messages_sent: u64,
     },
     #[serde(rename = "listUsers")]
     ListUsers { users: Vec<UserInfo> },
@@ -268,9 +268,9 @@ async fn process_message(state: &AppState, id: Uuid, text: String) -> Result<(),
                 send_to_one(
                     &entry,
                     &Outgoing::Status {
-                        uptimeSeconds: uptime,
-                        userCount: count,
-                        messagesSent: messages,
+                        uptime_seconds: uptime,
+                        user_count: count,
+                        messages_sent: messages,
                     },
                 );
             }
@@ -298,6 +298,8 @@ async fn process_message(state: &AppState, id: Uuid, text: String) -> Result<(),
 async fn broadcast(state: &AppState, payload: &Outgoing, except: Option<Uuid>) {
     let text = serde_json::to_string(payload).unwrap_or_else(|_| "{\"type\":\"error\",\"message\":\"serialize\"}".into());
     let clients = state.clients.lock().await;
+    let targets = clients.len();
+    info!(targets, except = ?except, "Broadcast payload");
     for (id, client) in clients.iter() {
         if except.is_some() && except.unwrap() == *id {
             continue;
