@@ -185,7 +185,7 @@ async fn handle_socket(state: AppState, socket: WebSocket, addr: SocketAddr) {
     }
     let latest_name = {
         let clients = state.clients.lock().await;
-        clients.get(&id).map(|c| c.name.clone()).unwrap_or(name)
+        clients.get(&id).map(|c| c.name.clone()).unwrap_or_else(|| name.clone())
     };
     broadcast(
         &state,
