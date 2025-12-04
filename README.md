@@ -117,3 +117,41 @@ $ websocat -t ws://127.0.0.1:3001
 ```
 
 De regels zonder `$` prefix zijn server responses; regels die je zelf typt zijn JSON requests.
+
+## Benchmarking
+
+Stress test tool om de Bun/TS en Rust backends te vergelijken. Gebruikt Bun Worker threads voor realistische concurrent clients.
+
+### Gebruik
+
+```bash
+# Standaard: 10 clients, 60 msg/min/client, 30 seconden
+bun run tools/ws-benchmark.ts
+
+# Custom configuratie
+bun run tools/ws-benchmark.ts --clients=50 --rate=120 --duration=60
+
+# Tegen specifieke URL
+bun run tools/ws-benchmark.ts --url=ws://192.168.0.80:3001
+
+# Quiet mode (alleen resultaten)
+bun run tools/ws-benchmark.ts --quiet
+```
+
+### Opties
+
+| Optie | Default | Beschrijving |
+|-------|---------|--------------|
+| `--url` | `ws://127.0.0.1:3001` | WebSocket server URL |
+| `--clients` | `10` | Aantal concurrent clients (als Worker threads) |
+| `--rate` | `60` | Berichten per minuut per client |
+| `--duration` | `30` | Testduur in seconden |
+| `--quiet` | `false` | Alleen eindresultaten tonen |
+
+### Output
+
+De benchmark toont:
+- Live progress (connected clients, sent/received messages)
+- Totaal verzonden/ontvangen berichten
+- Throughput (msg/s)
+- Latency statistieken (average, P50, P95, P99)
