@@ -128,34 +128,38 @@ bun run dev:ws
 
 Deze versie heeft hetzelfde protocol als de Rust backend, maar lagere performance (zie Benchmarking).
 
-## CLI Client
+## Native Clients
 
-Native command-line chat client geschreven in Rust.
+Twee native Rust clients beschikbaar:
 
-### Bouwen en starten
+### CLI Client
+
+Command-line chat client voor terminal gebruik.
 
 ```bash
 cd rust-client
 cargo build --release
-
-# Verbind met lokale server
-./target/release/chat
-
-# Of met specifieke URL
-./target/release/chat ws://192.168.0.80:3001
+./target/release/chat                    # lokaal
+./target/release/chat ws://server:3001   # remote
 ```
 
-### Commands
+Commands: `/name`, `/status`, `/users`, `/help`, `/quit`
 
-| Command | Beschrijving |
-|---------|--------------|
-| `/name <username>` | Wijzig gebruikersnaam |
-| `/status` | Toon server status |
-| `/users` | Lijst verbonden gebruikers |
-| `/help` | Toon help |
-| `/quit` | Sluit af |
+### GUI Client
 
-Gewone tekst wordt als chatbericht verstuurd.
+Grafische chat client gebouwd met egui.
+
+```bash
+cd rust-gui
+cargo build --release
+./target/release/chat-gui
+```
+
+Features:
+- Configureerbare server URL
+- Connect/disconnect knop
+- Berichten versturen met Enter
+- Commands: `/name`, `/status`, `/users`
 
 ## Testen met websocat
 
