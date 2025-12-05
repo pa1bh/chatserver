@@ -128,6 +128,35 @@ bun run dev:ws
 
 Deze versie heeft hetzelfde protocol als de Rust backend, maar lagere performance (zie Benchmarking).
 
+## CLI Client
+
+Native command-line chat client geschreven in Rust.
+
+### Bouwen en starten
+
+```bash
+cd rust-client
+cargo build --release
+
+# Verbind met lokale server
+./target/release/chat
+
+# Of met specifieke URL
+./target/release/chat ws://192.168.0.80:3001
+```
+
+### Commands
+
+| Command | Beschrijving |
+|---------|--------------|
+| `/name <username>` | Wijzig gebruikersnaam |
+| `/status` | Toon server status |
+| `/users` | Lijst verbonden gebruikers |
+| `/help` | Toon help |
+| `/quit` | Sluit af |
+
+Gewone tekst wordt als chatbericht verstuurd.
+
 ## Testen met websocat
 
 Installeer [websocat](https://github.com/vi/websocat) om de WebSocket backend handmatig te testen:
