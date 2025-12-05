@@ -1,91 +1,16 @@
-use std::{
-    collections::HashMap,
-    net::SocketAddr,
-    sync::{Arc, atomic::AtomicU64},
-    time::{Instant, SystemTime},
-};
-use sysinfo::{Pid, System};
+mod handlers;
+mod protocol;
+mod state;
+mod utils;
 
-use axum::{
-    extract::{
-        ws::{Message, WebSocket, WebSocketUpgrade},
-        ConnectInfo, State,
-    },
-    response::IntoResponse,
-    routing::get,
-    Router,
-};
-use futures::{stream::StreamExt, SinkExt};
-use serde::{Deserialize, Serialize};
-use tokio::sync::{mpsc, Mutex};
-use tracing::{debug, error, info};
-use uuid::Uuid;
+use std::net::SocketAddr;
 
-type Clients = Arc<Mutex<HashMap<Uuid, Client>>>;
+use axum::{routing::get, Router};
+use tokio::net::TcpListener;
+use tracing::info;
 
-#[derive(Clone)]
-struct AppState {
-    clients: Clients,
-    started_at: Instant,
-    messages_sent: Arc<AtomicU64>,
-}
-
-#[derive(Clone)]
-struct Client {
-    name: String,
-    ip: String,
-    tx: mpsc::UnboundedSender<Message>,
-    #[allow(dead_code)]
-    connected_at: SystemTime,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(tag = "type")]
-enum Incoming {
-    #[serde(rename = "chat")]
-    Chat { text: String },
-    #[serde(rename = "setName")]
-    SetName { name: String },
-    #[serde(rename = "status")]
-    Status,
-    #[serde(rename = "listUsers")]
-    ListUsers,
-}
-
-#[derive(Debug, Serialize, Clone)]
-#[serde(tag = "type", rename_all = "camelCase")]
-enum Outgoing {
-    #[serde(rename = "chat")]
-    Chat { from: String, text: String, at: u128 },
-    #[serde(rename = "system")]
-    System { text: String, at: u128 },
-    #[serde(rename = "ackName")]
-    AckName { name: String, at: u128 },
-    #[serde(rename = "status")]
-    Status {
-        #[serde(rename = "uptimeSeconds")]
-        uptime_seconds: u64,
-        #[serde(rename = "userCount")]
-        user_count: usize,
-        #[serde(rename = "messagesSent")]
-        messages_sent: u64,
-        #[serde(rename = "messagesPerSecond")]
-        messages_per_second: f64,
-        #[serde(rename = "memoryMb")]
-        memory_mb: f64,
-    },
-    #[serde(rename = "listUsers")]
-    ListUsers { users: Vec<UserInfo> },
-    #[serde(rename = "error")]
-    Error { message: String },
-}
-
-#[derive(Debug, Serialize, Clone)]
-struct UserInfo {
-    id: String,
-    name: String,
-    ip: String,
-}
+use handlers::ws_handler;
+use state::AppState;
 
 #[tokio::main]
 async fn main() {
@@ -102,276 +27,48 @@ async fn main() {
         .ok()
         .and_then(|p| p.parse::<u16>().ok())
         .unwrap_or(3001);
-    let addr: SocketAddr = SocketAddr::from(([0, 0, 0, 0], port));
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
 
-    let state = AppState {
-        clients: Arc::new(Mutex::new(HashMap::new())),
-        started_at: Instant::now(),
-        messages_sent: Arc::new(AtomicU64::new(0)),
-    };
+    let state = AppState::new();
 
     let app = Router::new()
         .route("/", get(ws_handler))
-        .with_state(state.clone())
-        .into_make_service_with_connect_info::<SocketAddr>();
+        .with_state(state);
 
+    let listener = TcpListener::bind(addr).await.expect("bind to address");
     info!(port, "Rust WS server start");
-    axum::Server::bind(&addr)
-        .http1_only(true)
-        .serve(app)
-        .await
-        .expect("start ws server");
+
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .with_graceful_shutdown(shutdown_signal())
+    .await
+    .expect("start ws server");
+
+    info!("Server shut down gracefully");
 }
 
-async fn ws_handler(
-    ws: WebSocketUpgrade,
-    State(state): State<AppState>,
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
-) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| handle_socket(state, socket, addr))
-}
-
-async fn handle_socket(state: AppState, socket: WebSocket, addr: SocketAddr) {
-    let id = Uuid::new_v4();
-    let name = format!("guest-{}", &id.to_string()[..6]);
-    let (mut sender, mut receiver) = socket.split();
-    let (tx, mut rx) = mpsc::unbounded_channel::<Message>();
-
-    // Send loop
-    let send_task = tokio::spawn(async move {
-        while let Some(msg) = rx.recv().await {
-            if let Err(err) = sender.send(msg).await {
-                error!(?err, "WS send loop stopped");
-                break;
-            }
-        }
-        debug!("WS send loop finished");
-    });
-
-    let client = Client {
-        name: name.clone(),
-        ip: addr.ip().to_string(),
-        tx,
-        connected_at: SystemTime::now(),
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("install Ctrl+C handler");
     };
 
-    {
-        let mut clients = state.clients.lock().await;
-        clients.insert(id, client.clone());
-    }
-
-    info!(id = %id, name = %name, ip = %addr.ip(), "Client connected");
-    send_to_one(&client, &Outgoing::AckName { name: name.clone(), at: now_ms() });
-    broadcast(
-        &state,
-        &Outgoing::System {
-            text: format!("{name} heeft de chat betreden."),
-            at: now_ms(),
-        },
-        Some(id),
-    )
-    .await;
-
-    // Receive loop
-    while let Some(msg) = receiver.next().await {
-        debug!(id = %id, raw = ?msg, "Ontvangen WS bericht");
-        let msg = match msg {
-            Ok(m) => m,
-            Err(err) => {
-                error!(id = %id, ?err, "WS receive error");
-                break;
-            }
-        };
-        match msg {
-            Message::Text(text) => {
-                if let Err(err) = process_message(&state, id, text).await {
-                    if let Some(c) = state.clients.lock().await.get(&id).cloned() {
-                        send_to_one(&c, &Outgoing::Error { message: err });
-                    }
-                }
-            }
-            Message::Close(_) => break,
-            Message::Ping(p) => {
-                let _ = client.tx.send(Message::Pong(p));
-            }
-            _ => {}
-        }
-    }
-
-    // Cleanup
-    {
-        let mut clients = state.clients.lock().await;
-        clients.remove(&id);
-    }
-    let latest_name = {
-        let clients = state.clients.lock().await;
-        clients.get(&id).map(|c| c.name.clone()).unwrap_or_else(|| name.clone())
-    };
-    broadcast(
-        &state,
-        &Outgoing::System {
-            text: format!("{} heeft de chat verlaten.", latest_name),
-            at: now_ms(),
-        },
-        Some(id),
-    )
-    .await;
-
-    send_task.abort();
-    info!(id = %id, name = %name, ip = %addr.ip(), "Client disconnected");
-}
-
-async fn process_message(state: &AppState, id: Uuid, text: String) -> Result<(), String> {
-    let incoming: Incoming = serde_json::from_str(&text).map_err(|_| "Bericht moet geldig JSON zijn.".to_string())?;
-
-    match incoming {
-        Incoming::Chat { text } => {
-            let trimmed = text.trim();
-            if trimmed.is_empty() {
-                return Err("Bericht mag niet leeg zijn.".into());
-            }
-            if trimmed.len() > 500 {
-                return Err("Bericht is te lang (max 500 tekens).".into());
-            }
-            let (name, ip) = {
-                let clients = state.clients.lock().await;
-                let entry = clients.get(&id).ok_or_else(|| "Onbekende gebruiker".to_string())?;
-                (entry.name.clone(), entry.ip.clone())
-            };
-
-            state.messages_sent.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            broadcast(
-                state,
-                &Outgoing::Chat {
-                    from: name.clone(),
-                    text: trimmed.to_string(),
-                    at: now_ms(),
-                },
-                None,
-            )
+    #[cfg(unix)]
+    let terminate = async {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("install SIGTERM handler")
+            .recv()
             .await;
-            debug!(from = %name, id = %id, ip = %ip, "Bericht verzonden");
-        }
-        Incoming::SetName { name } => {
-            let trimmed = name.trim();
-            if trimmed.len() < 2 || trimmed.len() > 32 {
-                return Err("Naam moet tussen 2 en 32 tekens zijn.".into());
-            }
-            let rename_info = {
-                let mut clients = state.clients.lock().await;
-                if let Some(entry) = clients.get_mut(&id) {
-                    let old = entry.name.clone();
-                    entry.name = trimmed.to_string();
-                    send_to_one(entry, &Outgoing::AckName { name: entry.name.clone(), at: now_ms() });
-                    Some((old, entry.name.clone(), entry.ip.clone()))
-                } else {
-                    None
-                }
-            };
-            if let Some((old, new_name, ip)) = rename_info {
-                broadcast(
-                    state,
-                    &Outgoing::System {
-                        text: format!("{old} heet nu {new_name}."),
-                        at: now_ms(),
-                    },
-                    Some(id),
-                )
-                .await;
-                debug!(old = %old, new = %new_name, id = %id, ip = %ip, "Gebruikersnaam gewijzigd");
-            }
-        }
-        Incoming::Status => {
-            let uptime_secs = state.started_at.elapsed().as_secs();
-            let count = state.clients.lock().await.len();
-            let messages = state.messages_sent.load(std::sync::atomic::Ordering::Relaxed);
-            let msgs_per_sec = if uptime_secs > 0 {
-                messages as f64 / uptime_secs as f64
-            } else {
-                0.0
-            };
+    };
 
-            // Get memory usage
-            let memory_mb = {
-                let mut sys = System::new();
-                let pid = Pid::from_u32(std::process::id());
-                sys.refresh_process(pid);
-                sys.process(pid)
-                    .map(|p| p.memory() as f64 / 1024.0 / 1024.0)
-                    .unwrap_or(0.0)
-            };
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
 
-            if let Some(entry) = state.clients.lock().await.get(&id).cloned() {
-                send_to_one(
-                    &entry,
-                    &Outgoing::Status {
-                        uptime_seconds: uptime_secs,
-                        user_count: count,
-                        messages_sent: messages,
-                        messages_per_second: (msgs_per_sec * 100.0).round() / 100.0,
-                        memory_mb: (memory_mb * 100.0).round() / 100.0,
-                    },
-                );
-            }
-        }
-        Incoming::ListUsers => {
-            let users = state
-                .clients
-                .lock()
-                .await
-                .iter()
-                .map(|(id, c)| UserInfo {
-                    id: id.to_string(),
-                    name: c.name.clone(),
-                    ip: c.ip.clone(),
-                })
-                .collect::<Vec<_>>();
-            if let Some(entry) = state.clients.lock().await.get(&id).cloned() {
-                send_to_one(&entry, &Outgoing::ListUsers { users });
-            }
-        }
-    }
-
-    Ok(())
-}
-
-async fn broadcast(state: &AppState, payload: &Outgoing, except: Option<Uuid>) {
-    let text = serde_json::to_string(payload).unwrap_or_else(|_| "{\"type\":\"error\",\"message\":\"serialize\"}".into());
-    let clients = state.clients.lock().await;
-    let targets = clients.len();
-    debug!(targets, except = ?except, kind = %payload_kind(payload), "Broadcast payload");
-    for (id, client) in clients.iter() {
-        if except.is_some() && except.unwrap() == *id {
-            continue;
-        }
-        if let Err(err) = client.tx.send(Message::Text(text.clone())) {
-            error!(id = %id, ?err, "Send to client failed");
-        }
-    }
-}
-
-fn send_to_one(client: &Client, payload: &Outgoing) {
-    if let Ok(text) = serde_json::to_string(payload) {
-        if let Err(err) = client.tx.send(Message::Text(text)) {
-            error!(name = %client.name, ip = %client.ip, ?err, "Send to single client failed");
-        }
-    }
-}
-
-fn now_ms() -> u128 {
-    SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .map(|d| d.as_millis())
-        .unwrap_or(0)
-}
-
-fn payload_kind(payload: &Outgoing) -> &'static str {
-    match payload {
-        Outgoing::Chat { .. } => "chat",
-        Outgoing::System { .. } => "system",
-        Outgoing::AckName { .. } => "ackName",
-        Outgoing::Status { .. } => "status",
-        Outgoing::ListUsers { .. } => "listUsers",
-        Outgoing::Error { .. } => "error",
+    tokio::select! {
+        _ = ctrl_c => info!("Received Ctrl+C, shutting down..."),
+        _ = terminate => info!("Received SIGTERM, shutting down..."),
     }
 }

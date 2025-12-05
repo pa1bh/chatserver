@@ -4,12 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-axum = { version = "0.6", features = ["ws", "headers"] }
+axum = { version = "0.8", features = ["ws"] }
+dashmap = "6"
 futures = "0.3"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-sysinfo = "0.30"
-tokio = { version = "1.35", features = ["macros", "rt-multi-thread", "sync"] }
+sysinfo = "0.33"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "signal"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
-uuid = { version = "1.6", features = ["v4"] }
+uuid = { version = "1", features = ["v4"] }
