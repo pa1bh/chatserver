@@ -92,6 +92,28 @@ RUST_LOG=debug cargo run
 
 De Rust backend leest dezelfde `WS_PORT` environment variable als de HTTP server.
 
+### Docker
+
+De Rust backend kan ook in een container draaien:
+
+```bash
+cd rust-ws
+
+# Bouwen
+docker build -t bunserve-ws .
+
+# Starten
+docker run -p 3001:3001 bunserve-ws
+
+# Met logging
+docker run -p 3001:3001 -e RUST_LOG=info bunserve-ws
+
+# Andere poort
+docker run -p 8080:8080 -e WS_PORT=8080 bunserve-ws
+```
+
+De image gebruikt een multi-stage build (~15MB) met Alpine Linux.
+
 ## Bun/TypeScript WebSocket backend (deprecated)
 
 Er is ook een Bun/TypeScript versie van de WebSocket backend beschikbaar voor testen.
