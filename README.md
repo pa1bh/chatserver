@@ -1,6 +1,6 @@
 # bunserve
 
-Chatserver op Bun met een Express frontend en een WebSocket backend.
+Chatserver met een Express/Bun frontend en een Rust WebSocket backend.
 
 ## Installeren
 
@@ -16,16 +16,16 @@ bun run index.ts
 # of: bun run start:http
 ```
 
-WebSocket backend:
+WebSocket backend (Rust):
 ```bash
-bun run ws-server.ts
-# of: bun run start:ws
+cd rust-ws
+cargo run --release
 ```
 
 Tijdens ontwikkeling:
 ```bash
-bun run dev:http
-bun run dev:ws
+bun run dev:http              # frontend met auto-reload
+cd rust-ws && cargo run       # Rust backend
 ```
 
 ## Configuratie
@@ -66,21 +66,12 @@ bun run dev:ws
 ## Logging
 Logging gaat naar stdout tenzij `LOG_TARGET=file` of `--log=file:pad` is gezet. Backend logt join/leave/bericht events; HTTP logt startinfo.
 
-## Alternatieve WS backend (Rust)
+## Rust WebSocket backend
 
-Drop-in vervanging voor de Bun/TS WebSocket server, geschreven in Rust met Axum en Tokio.
+De WebSocket backend is geschreven in Rust met Axum en Tokio.
 
 - **Locatie:** `rust-ws/`
 - **Vereisten:** Rust + Cargo
-- **Protocol:** identiek aan de Bun/TS backend — de frontend werkt ongewijzigd
-
-### Bouwen en starten
-
-```bash
-cd rust-ws
-cargo build --release    # optioneel: release build
-cargo run                # start op WS_PORT (default 3001)
-```
 
 ### Logging
 
@@ -99,7 +90,21 @@ RUST_LOG=debug cargo run
 
 ### Configuratie
 
-De Rust backend leest dezelfde `WS_PORT` environment variable als de TS versie.
+De Rust backend leest dezelfde `WS_PORT` environment variable als de HTTP server.
+
+## Bun/TypeScript WebSocket backend (deprecated)
+
+Er is ook een Bun/TypeScript versie van de WebSocket backend beschikbaar voor testen.
+
+```bash
+bun run ws-server.ts
+# of: bun run start:ws
+
+# Met auto-reload:
+bun run dev:ws
+```
+
+Deze versie heeft hetzelfde protocol als de Rust backend, maar lagere performance (zie Benchmarking).
 
 ## Testen met websocat
 

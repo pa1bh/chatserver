@@ -23,7 +23,8 @@ als we laster de twee verandwoordelijkheden over verschillende servers / contain
 -- frontend: / (home, chatwindow), /status server status
 - Invoer/uitvoer validaties: Basis validatie
 - Edge cases en foutafhandeling: model voor gebruikers als er iets is misgegaan (bv verbinding met de backend) met de melding
-- gebruik Bun webscokets voor de implementatie: https://bun.com/docs/runtime/http/websockets
+- De WebSocket backend is geïmplementeerd in Rust (Axum/Tokio) — zie `rust-ws/`
+- Er is ook een Bun/TypeScript versie beschikbaar voor testen (deprecated)
 
 ## Niet-functionele Eisen
 - Performance (latency/throughput): voor nu geen eisen
