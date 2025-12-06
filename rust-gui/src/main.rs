@@ -1,11 +1,13 @@
+use std::collections::HashMap;
 use std::sync::mpsc::{channel, Receiver, Sender};
+use std::time::Instant;
 
 use eframe::egui;
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use tokio_tungstenite::tungstenite::Message;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 #[serde(tag = "type", rename_all = "camelCase")]
 enum Outgoing {
     #[serde(rename = "chat")]
@@ -16,6 +18,8 @@ enum Outgoing {
     Status,
     #[serde(rename = "listUsers")]
     ListUsers,
+    #[serde(rename = "ping")]
+    Ping { token: Option<String> },
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -40,6 +44,8 @@ enum Incoming {
     ListUsers { users: Vec<UserInfo> },
     #[serde(rename = "error")]
     Error { message: String },
+    #[serde(rename = "pong")]
+    Pong { token: Option<String> },
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -68,6 +74,8 @@ struct ChatApp {
     ui_rx: Option<Receiver<Incoming>>,
     // Channel to receive connection status
     status_rx: Option<Receiver<bool>>,
+    // Pending ping requests for roundtrip calculation
+    pending_pings: HashMap<String, Instant>,
 }
 
 impl Default for ChatApp {
@@ -81,6 +89,7 @@ impl Default for ChatApp {
             ws_tx: None,
             ui_rx: None,
             status_rx: None,
+            pending_pings: HashMap::new(),
         }
     }
 }
@@ -173,6 +182,15 @@ impl ChatApp {
                     "/users" => {
                         let _ = tx.send(Outgoing::ListUsers);
                     }
+                    "/ping" => {
+                        let token = if arg.is_empty() {
+                            uuid::Uuid::new_v4().to_string()
+                        } else {
+                            arg.to_string()
+                        };
+                        self.pending_pings.insert(token.clone(), Instant::now());
+                        let _ = tx.send(Outgoing::Ping { token: Some(token) });
+                    }
                     _ => {
                         self.messages.push(ChatLine::Error(format!("Unknown command: {}", cmd)));
                     }
@@ -211,6 +229,21 @@ impl ChatApp {
                     }
                     Incoming::Error { message } => {
                         self.messages.push(ChatLine::Error(message));
+                    }
+                    Incoming::Pong { token } => {
+                        let roundtrip = token.as_ref().and_then(|t| {
+                            self.pending_pings.remove(t).map(|start| start.elapsed())
+                        });
+                        let token_str = token.as_ref().map(|t| format!(" (token: {}...)", &t[..8.min(t.len())])).unwrap_or_default();
+                        if let Some(rtt) = roundtrip {
+                            self.messages.push(ChatLine::Status(format!(
+                                "Pong! roundtrip: {:.2}ms{}",
+                                rtt.as_secs_f64() * 1000.0,
+                                token_str
+                            )));
+                        } else {
+                            self.messages.push(ChatLine::Status(format!("Pong!{}", token_str)));
+                        }
                     }
                 }
             }
@@ -276,7 +309,7 @@ impl eframe::App for ChatApp {
             });
 
             ui.add_space(4.0);
-            ui.label(egui::RichText::new("/name /status /users").small().weak());
+            ui.label(egui::RichText::new("/name /status /users /ping").small().weak());
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {

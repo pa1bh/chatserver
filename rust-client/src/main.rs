@@ -1,4 +1,7 @@
+use std::collections::HashMap;
 use std::io::{self, BufRead, Write};
+use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
@@ -16,6 +19,8 @@ enum Outgoing {
     Status,
     #[serde(rename = "listUsers")]
     ListUsers,
+    #[serde(rename = "ping")]
+    Ping { token: Option<String> },
 }
 
 #[derive(Debug, Deserialize)]
@@ -40,6 +45,8 @@ enum Incoming {
     ListUsers { users: Vec<UserInfo> },
     #[serde(rename = "error")]
     Error { message: String },
+    #[serde(rename = "pong")]
+    Pong { token: Option<String> },
 }
 
 #[derive(Debug, Deserialize)]
@@ -53,6 +60,7 @@ fn print_help() {
     println!("  /name <username>  Change your username");
     println!("  /status           Show server status");
     println!("  /users            List connected users");
+    println!("  /ping [token]     Ping server (measures roundtrip)");
     println!("  /help             Show this help");
     println!("  /quit             Exit the client");
     println!("\x1b[0m");
@@ -74,6 +82,10 @@ fn format_message(msg: &Incoming) -> String {
             format!("\x1b[36m[Users] {}\x1b[0m", names.join(", "))
         }
         Incoming::Error { message } => format!("\x1b[31m✗ Error: {}\x1b[0m", message),
+        Incoming::Pong { token } => {
+            let token_str = token.as_ref().map(|t| format!(" (token: {}...)", &t[..8.min(t.len())])).unwrap_or_default();
+            format!("\x1b[36m[Pong]{}\x1b[0m", token_str)
+        }
     }
 }
 
@@ -99,6 +111,14 @@ fn parse_command(input: &str) -> Option<Outgoing> {
             }
             "/status" => Some(Outgoing::Status),
             "/users" => Some(Outgoing::ListUsers),
+            "/ping" => {
+                let token = if arg.is_empty() {
+                    uuid::Uuid::new_v4().to_string()
+                } else {
+                    arg.to_string()
+                };
+                Some(Outgoing::Ping { token: Some(token) })
+            }
             "/help" => {
                 print_help();
                 None
@@ -136,6 +156,8 @@ async fn main() {
 
     let (mut write, mut read) = ws_stream.split();
     let (tx, mut rx) = mpsc::unbounded_channel::<Outgoing>();
+    let pending_pings: Arc<Mutex<HashMap<String, Instant>>> = Arc::new(Mutex::new(HashMap::new()));
+    let pending_pings_clone = Arc::clone(&pending_pings);
 
     // Spawn stdin reader
     let tx_clone = tx.clone();
@@ -171,7 +193,20 @@ async fn main() {
                         // Clear current line and print message
                         print!("\r\x1b[K");
                         if let Ok(incoming) = serde_json::from_str::<Incoming>(&text) {
-                            println!("{}", format_message(&incoming));
+                            // Handle Pong with roundtrip calculation
+                            if let Incoming::Pong { ref token } = incoming {
+                                let roundtrip = token.as_ref().and_then(|t| {
+                                    pending_pings_clone.lock().ok()?.remove(t).map(|start| start.elapsed())
+                                });
+                                let token_str = token.as_ref().map(|t| format!(" (token: {}...)", &t[..8.min(t.len())])).unwrap_or_default();
+                                if let Some(rtt) = roundtrip {
+                                    println!("\x1b[36m[Pong] roundtrip: {:.2}ms{}\x1b[0m", rtt.as_secs_f64() * 1000.0, token_str);
+                                } else {
+                                    println!("{}", format_message(&incoming));
+                                }
+                            } else {
+                                println!("{}", format_message(&incoming));
+                            }
                         } else {
                             println!("\x1b[90m{}\x1b[0m", text);
                         }
@@ -191,6 +226,12 @@ async fn main() {
             }
             // Send to server
             Some(msg) = rx.recv() => {
+                // Store timestamp for ping messages
+                if let Outgoing::Ping { token: Some(ref t) } = msg {
+                    if let Ok(mut pings) = pending_pings.lock() {
+                        pings.insert(t.clone(), Instant::now());
+                    }
+                }
                 let json = serde_json::to_string(&msg).unwrap();
                 if write.send(Message::Text(json.into())).await.is_err() {
                     println!("\n\x1b[31mFailed to send message\x1b[0m");

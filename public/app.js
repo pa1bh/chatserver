@@ -19,6 +19,14 @@ const composerNameText = qs("#composerNameText");
 let socket;
 let currentName = "";
 let reconnectTimeout;
+let pendingPings = new Map(); // token -> timestamp
+
+const generateToken = () => {
+  if (crypto.randomUUID) return crypto.randomUUID();
+  return Array.from(crypto.getRandomValues(new Uint8Array(16)))
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+};
 
 const getInitials = (name) => {
   if (!name) return "?";
@@ -74,6 +82,11 @@ const handleCommand = (raw) => {
       return sendPayload({ type: "status" });
     case "users":
       return sendPayload({ type: "listUsers" });
+    case "ping": {
+      const token = rest[0] || generateToken();
+      pendingPings.set(token, performance.now());
+      return sendPayload({ type: "ping", token });
+    }
     default:
       return appendMessage("error", `Onbekend commando: /${cmd}`, "client");
   }
@@ -135,6 +148,18 @@ const handleMessage = (event) => {
     case "error":
       appendMessage("error", payload.message, "server");
       break;
+    case "pong": {
+      const token = payload.token;
+      const sentAt = token ? pendingPings.get(token) : null;
+      if (sentAt) {
+        const roundtrip = (performance.now() - sentAt).toFixed(2);
+        pendingPings.delete(token);
+        appendMessage("system", `Pong! roundtrip: ${roundtrip}ms${token ? ` (token: ${token.slice(0, 8)}...)` : ""}`, "server");
+      } else {
+        appendMessage("system", `Pong!${token ? ` (token: ${token.slice(0, 8)}...)` : ""}`, "server");
+      }
+      break;
+    }
     default:
       appendMessage("error", "Onbekend bericht van server.", "server");
   }

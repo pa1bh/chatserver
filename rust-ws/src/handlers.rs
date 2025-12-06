@@ -196,6 +196,11 @@ async fn process_message(state: &AppState, id: Uuid, text: String) -> Result<(),
                 entry.value().send(&Outgoing::ListUsers { users });
             }
         }
+        Incoming::Ping { token } => {
+            if let Some(entry) = state.clients.get(&id) {
+                entry.value().send(&Outgoing::Pong { token, at: now_ms() });
+            }
+        }
     }
 
     Ok(())

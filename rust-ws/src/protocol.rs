@@ -11,6 +11,8 @@ pub enum Incoming {
     Status,
     #[serde(rename = "listUsers")]
     ListUsers,
+    #[serde(rename = "ping")]
+    Ping { token: Option<String> },
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -39,6 +41,8 @@ pub enum Outgoing {
     ListUsers { users: Vec<UserInfo> },
     #[serde(rename = "error")]
     Error { message: String },
+    #[serde(rename = "pong")]
+    Pong { token: Option<String>, at: u128 },
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -57,6 +61,7 @@ impl Outgoing {
             Outgoing::Status { .. } => "status",
             Outgoing::ListUsers { .. } => "listUsers",
             Outgoing::Error { .. } => "error",
+            Outgoing::Pong { .. } => "pong",
         }
     }
 }
