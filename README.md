@@ -192,26 +192,34 @@ De regels zonder `$` prefix zijn server responses; regels die je zelf typt zijn 
 
 ## Benchmarking
 
-Stress test tool om de Bun/TS en Rust backends te vergelijken. Gebruikt Bun Worker threads voor realistische concurrent clients.
+Stress test tools om de WebSocket backend te testen.
 
-Er zijn twee versies:
-- `ws-benchmark.ts` — Worker threads (realistischer, maar max ~100 clients door Bun bug)
-- `ws-benchmark-async.ts` — Async in één process (stabieler voor hoge loads)
+### Rust Benchmark (aanbevolen)
 
-### Gebruik
+Native Rust benchmark voor maximale performance en hoge client counts.
 
 ```bash
-# Worker versie (tot ~100 clients)
-bun run tools/ws-benchmark.ts --clients=50 --rate=120 --duration=60
+cd rust-wsbench
+cargo build --release
 
-# Async versie (voor 100+ clients)
+# Basis test
+./target/release/wsbench --clients=100 --rate=120 --duration=60
+
+# High load test
+./target/release/wsbench --clients=500 --rate=600 --duration=60
+
+# Help
+./target/release/wsbench --help
+```
+
+### Bun/TypeScript Benchmark
+
+Er zijn twee versies in `tools/`:
+- `ws-benchmark.ts` — Worker threads (max ~100 clients door Bun bug)
+- `ws-benchmark-async.ts` — Async (stabieler voor hogere loads)
+
+```bash
 bun run tools/ws-benchmark-async.ts --clients=200 --rate=600 --duration=60
-
-# Tegen specifieke URL
-bun run tools/ws-benchmark.ts --url=ws://192.168.0.80:3001
-
-# Quiet mode (alleen resultaten)
-bun run tools/ws-benchmark.ts --quiet
 ```
 
 ### Opties
