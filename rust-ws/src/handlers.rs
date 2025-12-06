@@ -66,7 +66,7 @@ async fn handle_socket(state: AppState, socket: WebSocket, addr: SocketAddr) {
         let msg = match msg {
             Ok(m) => m,
             Err(err) => {
-                error!(id = %id, ?err, "WS receive error");
+                debug!(id = %id, ?err, "WS receive error (client disconnected abruptly)");
                 break;
             }
         };
