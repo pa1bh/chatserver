@@ -45,6 +45,10 @@ enum Incoming {
         user_count: usize,
         #[serde(rename = "messagesSent")]
         messages_sent: u64,
+        #[serde(rename = "messagesPerSecond")]
+        messages_per_second: f64,
+        #[serde(rename = "memoryMb")]
+        memory_mb: f64,
     },
     #[serde(rename = "listUsers")]
     ListUsers { users: Vec<UserInfo> },
@@ -79,10 +83,10 @@ fn format_message(msg: &Incoming) -> String {
         Incoming::Chat { from, text } => format!("\x1b[1m{}\x1b[0m: {}", from, text),
         Incoming::System { text } => format!("\x1b[33m* {}\x1b[0m", text),
         Incoming::AckName { name } => format!("\x1b[32m✓ Your name is now: {}\x1b[0m", name),
-        Incoming::Status { uptime_seconds, user_count, messages_sent } => {
+        Incoming::Status { uptime_seconds, user_count, messages_sent, messages_per_second, memory_mb } => {
             format!(
-                "\x1b[36m[Status] uptime: {}s, users: {}, messages: {}\x1b[0m",
-                uptime_seconds, user_count, messages_sent
+                "\x1b[36m[Status] users: {} | uptime: {}s | msgs: {} | msg/s: {} | mem: {:.2} MB\x1b[0m",
+                user_count, uptime_seconds, messages_sent, messages_per_second, memory_mb
             )
         }
         Incoming::ListUsers { users } => {
