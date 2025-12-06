@@ -56,7 +56,9 @@ enum Incoming {
 
 #[derive(Debug, Deserialize)]
 struct UserInfo {
+    id: String,
     name: String,
+    ip: String,
 }
 
 fn print_help() {
@@ -84,8 +86,21 @@ fn format_message(msg: &Incoming) -> String {
             )
         }
         Incoming::ListUsers { users } => {
-            let names: Vec<_> = users.iter().map(|u| u.name.as_str()).collect();
-            format!("\x1b[36m[Users] {}\x1b[0m", names.join(", "))
+            if users.is_empty() {
+                return "\x1b[36m[Users] No users connected\x1b[0m".to_string();
+            }
+            // Calculate column widths
+            let name_width = users.iter().map(|u| u.name.len()).max().unwrap_or(4).max(4);
+            let ip_width = users.iter().map(|u| u.ip.len()).max().unwrap_or(2).max(2);
+
+            let mut output = String::from("\x1b[36m");
+            output.push_str(&format!("\r\n  {:<name_width$}  {:<ip_width$}  {}\r\n", "NAME", "IP", "ID"));
+            output.push_str(&format!("  {:-<name_width$}  {:-<ip_width$}  {:-<36}\r\n", "", "", ""));
+            for u in users {
+                output.push_str(&format!("  {:<name_width$}  {:<ip_width$}  {}\r\n", u.name, u.ip, u.id));
+            }
+            output.push_str("\x1b[0m");
+            output
         }
         Incoming::Error { message } => format!("\x1b[31m✗ Error: {}\x1b[0m", message),
         Incoming::Pong { token } => {
