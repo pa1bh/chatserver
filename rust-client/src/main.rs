@@ -1,12 +1,17 @@
 use std::collections::HashMap;
-use std::io::{self, BufRead, Write};
+use std::io::{self, Write};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
+use crossterm::event::{self, Event, KeyCode, KeyModifiers};
+use crossterm::terminal;
+use crossterm::{cursor, execute};
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
+
+const MAX_HISTORY: usize = 20;
 
 #[derive(Debug, Serialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
@@ -55,15 +60,16 @@ struct UserInfo {
 }
 
 fn print_help() {
-    println!("\x1b[90m");
-    println!("Commands:");
-    println!("  /name <username>  Change your username");
-    println!("  /status           Show server status");
-    println!("  /users            List connected users");
-    println!("  /ping [token]     Ping server (measures roundtrip)");
-    println!("  /help             Show this help");
-    println!("  /quit             Exit the client");
-    println!("\x1b[0m");
+    print!("\x1b[90m\r\n");
+    print!("Commands:\r\n");
+    print!("  /name <username>  Change your username\r\n");
+    print!("  /status           Show server status\r\n");
+    print!("  /users            List connected users\r\n");
+    print!("  /ping [token]     Ping server (measures roundtrip)\r\n");
+    print!("  /help             Show this help\r\n");
+    print!("  /quit             Exit the client\r\n");
+    print!("\x1b[0m\r\n");
+    let _ = io::stdout().flush();
 }
 
 fn format_message(msg: &Incoming) -> String {
@@ -103,7 +109,8 @@ fn parse_command(input: &str) -> Option<Outgoing> {
         match cmd.as_str() {
             "/name" => {
                 if arg.is_empty() {
-                    println!("\x1b[31mUsage: /name <username>\x1b[0m");
+                    print!("\x1b[31mUsage: /name <username>\x1b[0m\r\n");
+                    let _ = io::stdout().flush();
                     None
                 } else {
                     Some(Outgoing::SetName { name: arg.to_string() })
@@ -124,10 +131,12 @@ fn parse_command(input: &str) -> Option<Outgoing> {
                 None
             }
             "/quit" | "/exit" | "/q" => {
+                let _ = terminal::disable_raw_mode();
                 std::process::exit(0);
             }
             _ => {
-                println!("\x1b[31mUnknown command: {}\x1b[0m", cmd);
+                print!("\x1b[31mUnknown command: {}\x1b[0m\r\n", cmd);
+                let _ = io::stdout().flush();
                 None
             }
         }
@@ -152,32 +161,134 @@ async fn main() {
         }
     };
 
-    println!("\x1b[32mConnected!\x1b[0m Type /help for commands.\n");
+    println!("\x1b[32mConnected!\x1b[0m Type /help for commands.");
 
     let (mut write, mut read) = ws_stream.split();
     let (tx, mut rx) = mpsc::unbounded_channel::<Outgoing>();
     let pending_pings: Arc<Mutex<HashMap<String, Instant>>> = Arc::new(Mutex::new(HashMap::new()));
     let pending_pings_clone = Arc::clone(&pending_pings);
 
-    // Spawn stdin reader
+    // Spawn stdin reader with command history
     let tx_clone = tx.clone();
     std::thread::spawn(move || {
-        let stdin = io::stdin();
-        for line in stdin.lock().lines() {
-            match line {
-                Ok(input) => {
-                    if let Some(msg) = parse_command(&input) {
-                        if tx_clone.send(msg).is_err() {
-                            break;
+        let _ = terminal::enable_raw_mode();
+
+        let mut history: Vec<String> = Vec::new();
+        let mut history_idx: Option<usize> = None;
+        let mut input = String::new();
+        let mut cursor_pos: usize = 0;
+
+        loop {
+            if event::poll(std::time::Duration::from_millis(100)).unwrap_or(false) {
+                if let Ok(Event::Key(key_event)) = event::read() {
+                    match key_event.code {
+                        KeyCode::Enter => {
+                            print!("\r\n");
+                            let _ = io::stdout().flush();
+
+                            let trimmed = input.trim().to_string();
+                            if !trimmed.is_empty() {
+                                // Save commands to history
+                                if trimmed.starts_with('/') {
+                                    if history.last() != Some(&trimmed) {
+                                        history.push(trimmed.clone());
+                                        if history.len() > MAX_HISTORY {
+                                            history.remove(0);
+                                        }
+                                    }
+                                }
+
+                                if let Some(msg) = parse_command(&trimmed) {
+                                    if tx_clone.send(msg).is_err() {
+                                        break;
+                                    }
+                                }
+                            }
+
+                            input.clear();
+                            cursor_pos = 0;
+                            history_idx = None;
+
+                            print!("> ");
+                            let _ = io::stdout().flush();
                         }
+                        KeyCode::Backspace => {
+                            if cursor_pos > 0 {
+                                input.remove(cursor_pos - 1);
+                                cursor_pos -= 1;
+                                print!("\r\x1b[K> {}", input);
+                                if cursor_pos < input.len() {
+                                    let _ = execute!(io::stdout(), cursor::MoveToColumn((cursor_pos + 2) as u16));
+                                }
+                                let _ = io::stdout().flush();
+                            }
+                        }
+                        KeyCode::Left => {
+                            if cursor_pos > 0 {
+                                cursor_pos -= 1;
+                                let _ = execute!(io::stdout(), cursor::MoveLeft(1));
+                                let _ = io::stdout().flush();
+                            }
+                        }
+                        KeyCode::Right => {
+                            if cursor_pos < input.len() {
+                                cursor_pos += 1;
+                                let _ = execute!(io::stdout(), cursor::MoveRight(1));
+                                let _ = io::stdout().flush();
+                            }
+                        }
+                        KeyCode::Up => {
+                            if !history.is_empty() {
+                                let new_idx = match history_idx {
+                                    None => history.len() - 1,
+                                    Some(0) => 0,
+                                    Some(i) => i - 1,
+                                };
+                                history_idx = Some(new_idx);
+                                input = history[new_idx].clone();
+                                cursor_pos = input.len();
+                                print!("\r\x1b[K> {}", input);
+                                let _ = io::stdout().flush();
+                            }
+                        }
+                        KeyCode::Down => {
+                            match history_idx {
+                                Some(i) if i + 1 < history.len() => {
+                                    history_idx = Some(i + 1);
+                                    input = history[i + 1].clone();
+                                    cursor_pos = input.len();
+                                }
+                                Some(_) => {
+                                    history_idx = None;
+                                    input.clear();
+                                    cursor_pos = 0;
+                                }
+                                None => {}
+                            }
+                            print!("\r\x1b[K> {}", input);
+                            let _ = io::stdout().flush();
+                        }
+                        KeyCode::Char('c') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                            let _ = terminal::disable_raw_mode();
+                            println!("\r");
+                            std::process::exit(0);
+                        }
+                        KeyCode::Char(c) => {
+                            input.insert(cursor_pos, c);
+                            cursor_pos += 1;
+                            print!("\r\x1b[K> {}", input);
+                            if cursor_pos < input.len() {
+                                let _ = execute!(io::stdout(), cursor::MoveToColumn((cursor_pos + 2) as u16));
+                            }
+                            let _ = io::stdout().flush();
+                        }
+                        _ => {}
                     }
                 }
-                Err(_) => break,
             }
-            // Re-print prompt
-            print!("> ");
-            let _ = io::stdout().flush();
         }
+
+        let _ = terminal::disable_raw_mode();
     });
 
     // Print initial prompt
@@ -200,25 +311,27 @@ async fn main() {
                                 });
                                 let token_str = token.as_ref().map(|t| format!(" (token: {}...)", &t[..8.min(t.len())])).unwrap_or_default();
                                 if let Some(rtt) = roundtrip {
-                                    println!("\x1b[36m[Pong] roundtrip: {:.2}ms{}\x1b[0m", rtt.as_secs_f64() * 1000.0, token_str);
+                                    print!("\x1b[36m[Pong] roundtrip: {:.2}ms{}\x1b[0m\r\n", rtt.as_secs_f64() * 1000.0, token_str);
                                 } else {
-                                    println!("{}", format_message(&incoming));
+                                    print!("{}\r\n", format_message(&incoming));
                                 }
                             } else {
-                                println!("{}", format_message(&incoming));
+                                print!("{}\r\n", format_message(&incoming));
                             }
                         } else {
-                            println!("\x1b[90m{}\x1b[0m", text);
+                            print!("\x1b[90m{}\x1b[0m\r\n", text);
                         }
                         print!("> ");
                         let _ = io::stdout().flush();
                     }
                     Some(Ok(Message::Close(_))) | None => {
-                        println!("\n\x1b[33mDisconnected from server\x1b[0m");
+                        print!("\r\n\x1b[33mDisconnected from server\x1b[0m\r\n");
+                        let _ = io::stdout().flush();
                         break;
                     }
                     Some(Err(e)) => {
-                        println!("\n\x1b[31mConnection error: {}\x1b[0m", e);
+                        print!("\r\n\x1b[31mConnection error: {}\x1b[0m\r\n", e);
+                        let _ = io::stdout().flush();
                         break;
                     }
                     _ => {}
@@ -234,7 +347,8 @@ async fn main() {
                 }
                 let json = serde_json::to_string(&msg).unwrap();
                 if write.send(Message::Text(json.into())).await.is_err() {
-                    println!("\n\x1b[31mFailed to send message\x1b[0m");
+                    print!("\r\n\x1b[31mFailed to send message\x1b[0m\r\n");
+                    let _ = io::stdout().flush();
                     break;
                 }
             }
