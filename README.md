@@ -240,45 +240,38 @@ De benchmark toont:
 - Throughput (msg/s)
 - Latency statistieken (average, P50, P95, P99)
 
-#### Voorbeeld test
+**Tip:** Vergroot de file descriptor limiet voor hoge client counts:
 ```bash
-bun run tools/ws-benchmark-async.ts --clients=200 --rate=600 --duration=60
+ulimit -n 10000  # in beide terminals (server + benchmark)
 ```
 
-rust backend
-```bash
-═══════════════════════════════════════
-Results
-═══════════════════════════════════════
-Clients connected:  200/200
-Messages sent:      115516
-Messages received:  23152470
-Errors:             0
-Throughput:         1925.3 msg/s
+### Benchmark resultaten (Rust backend)
 
-Latency (ms):
-  Average:  2.67
-  P50:      2.00
-  P95:      5.00
-  P99:      7.00
-═══════════════════════════════════════
-```
+Getest met `rust-wsbench` → `rust-ws` op Apple M1 Pro:
 
-Bun backend
-```bash
-═══════════════════════════════════════
-Results
-═══════════════════════════════════════
-Clients connected:  200/200
-Messages sent:      115568
-Messages received:  15955826
-Errors:             0
-Throughput:         1926.1 msg/s
+| Clients | Rate/min | Throughput | P50 | P95 | P99 | Status |
+|---------|----------|------------|-----|-----|-----|--------|
+| 200 | 200 | 664 msg/s | 1ms | 4ms | 4ms | ✓ Excellent |
+| 500 | 120 | 995 msg/s | 3ms | 5ms | 7ms | ✓ Excellent |
+| 1000 | 60 | 990 msg/s | 9ms | 18ms | 91ms | ✓ Goed |
+| 1500 | 30 | 744 msg/s | 16ms | 285ms | 1054ms | ⚠️ Grens |
+| 2000 | 30 | 983 msg/s | 10s | 20s | 21s | ❌ Overbelast |
 
-Latency (ms):
-  Average:  7594.50
-  P50:      5248.00
-  P95:      22254.00
-  P99:      27827.00
-═══════════════════════════════════════
-```
+**Limieten:**
+- Max clients: 2000+ (geen connection issues)
+- Max broadcasts/s met <100ms latency: ~1 miljoen
+- Sweet spot: 1000 clients @ 60 msg/min
+
+### Rust vs Bun backend
+
+Directe vergelijking met 500 clients @ 120 msg/min:
+
+| Metric | Rust | Bun | Verschil |
+|--------|------|-----|----------|
+| Clients connected | 500/500 (100%) | 382/500 (76%) | Rust +31% |
+| P50 latency | **3ms** | 8078ms | Rust 2700× sneller |
+| P95 latency | **5ms** | 32224ms | Rust 6400× sneller |
+| P99 latency | **7ms** | 39556ms | Rust 5600× sneller |
+| Errors | 0 | 0 | - |
+
+**Conclusie:** De Rust backend levert instant message delivery (<10ms) waar de Bun backend 8-40 seconden vertraging heeft onder dezelfde load. Dit is de reden dat Rust de standaard backend is.
