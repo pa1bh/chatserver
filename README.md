@@ -48,12 +48,14 @@ cd rust-ws && cargo run       # Rust backend
   - `{ type: "setName", name }`
   - `{ type: "status" }`
   - `{ type: "listUsers" }`
+  - `{ type: "ping", token? }` — optionele token voor response validatie
 - Outbound (server → client):
   - `chat` `{ from, text, at }`
   - `system` `{ text, at }`
   - `ackName` `{ name, at }`
   - `status` `{ uptimeSeconds, userCount, messagesSent, messagesPerSecond, memoryMb }` ¹
   - `listUsers` `{ users: [{ id, name, ip }] }` ¹
+  - `pong` `{ token?, at }` — response op ping met dezelfde token
   - `error` `{ message }`
 
 ¹ Rust backend only: `messagesPerSecond`, `memoryMb`, en `ip` velden
@@ -62,6 +64,7 @@ cd rust-ws && cargo run       # Rust backend
 - `/name nieuwe_naam` — wijzig gebruikersnaam.
 - `/status` — vraag serverstatus op.
 - `/users` — lijst huidige gebruikers.
+- `/ping [token]` — meet roundtrip tijd naar server.
 
 ## Logging
 Logging gaat naar stdout tenzij `LOG_TARGET=file` of `--log=file:pad` is gezet. Backend logt join/leave/bericht events; HTTP logt startinfo.
@@ -143,7 +146,11 @@ cargo build --release
 ./target/release/chat ws://server:3001   # remote
 ```
 
-Commands: `/name`, `/status`, `/users`, `/help`, `/quit`
+Commands: `/name`, `/status`, `/users`, `/ping`, `/help`, `/quit`
+
+Features:
+- Command history met pijltjestoetsen (↑/↓)
+- Cursor navigatie (←/→)
 
 ### GUI Client
 
@@ -159,7 +166,71 @@ Features:
 - Configureerbare server URL
 - Connect/disconnect knop
 - Berichten versturen met Enter
-- Commands: `/name`, `/status`, `/users`
+- Commands: `/name`, `/status`, `/users`, `/ping`
+
+### Health Monitor (wsmonitor)
+
+CLI tool voor health checks en monitoring in scripts.
+
+```bash
+cd rust-wsmonitor
+cargo build --release
+```
+
+#### Gebruik
+
+```bash
+# Silent health check (voor scripts)
+./target/release/wsmonitor && echo "OK" || echo "FAIL"
+
+# Verbose met roundtrip tijd
+./target/release/wsmonitor -v
+# PING ws://127.0.0.1:3001 (1 pings)
+# seq=1: time=0.25ms
+
+# Meerdere pings met statistieken
+./target/release/wsmonitor -v --count=4
+# PING ws://127.0.0.1:3001 (4 pings)
+# seq=1: time=0.25ms
+# seq=2: time=0.28ms
+# seq=3: time=0.31ms
+# seq=4: time=0.27ms
+#
+# --- ws://127.0.0.1:3001 ping statistics ---
+# 4 pings, 4 received, 0% loss
+# rtt min/avg/max = 0.25/0.28/0.31 ms
+
+# Custom server
+./target/release/wsmonitor -v ws://server:3001
+```
+
+#### Opties
+
+| Optie | Beschrijving |
+|-------|--------------|
+| `-v`, `--verbose` | Toon response tijden |
+| `-c<N>`, `--count=<N>` | Aantal pings (default: 1) |
+| `-h`, `--help` | Help tonen |
+
+#### Exit codes
+
+| Code | Betekenis |
+|------|-----------|
+| `0` | Alle pings succesvol |
+| `1` | Verbinding of ping gefaald |
+
+#### Voorbeelden in scripts
+
+```bash
+# Cron health check
+*/5 * * * * /path/to/wsmonitor || echo "WS server down" | mail -s "Alert" admin@example.com
+
+# Wacht tot server beschikbaar is
+until wsmonitor; do sleep 1; done && echo "Server is up"
+
+# Monitoring met output
+wsmonitor -v --count=10 | tee -a /var/log/ws-health.log
+```
 
 ## Testen met websocat
 
