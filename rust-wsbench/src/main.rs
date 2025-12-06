@@ -90,14 +90,14 @@ fn random_phrase() -> String {
     format!("{}{}", phrase, suffix)
 }
 
-fn random_interval(base_ms: u64) -> Duration {
-    if base_ms == 0 {
+fn random_interval(base_us: u64) -> Duration {
+    if base_us == 0 {
         return Duration::ZERO;
     }
     let mut rng = rand::rng();
-    let variance = (base_ms as f64 * 0.3) as i64;
+    let variance = (base_us as f64 * 0.3) as i64;
     let offset = rng.random_range(-variance..=variance);
-    Duration::from_millis((base_ms as i64 + offset).max(1) as u64)
+    Duration::from_micros((base_us as i64 + offset).max(100) as u64)
 }
 
 struct Stats {
@@ -130,7 +130,8 @@ async fn run_client(
     flood: bool,
 ) {
     let name = format!("bench-{}", client_id);
-    let base_interval_ms = if flood { 0 } else { 60_000 / rate.max(1) as u64 };
+    // Calculate interval in microseconds: 60 seconds = 60_000_000 microseconds
+    let base_interval_us = if flood { 0 } else { 60_000_000 / rate.max(1) as u64 };
 
     // Connect
     let ws_stream = match tokio_tungstenite::connect_async(&url).await {
@@ -217,7 +218,7 @@ async fn run_client(
         stats.messages_sent.fetch_add(1, Ordering::Relaxed);
         msg_count += 1;
 
-        let interval = random_interval(base_interval_ms);
+        let interval = random_interval(base_interval_us);
         if interval.is_zero() {
             tokio::task::yield_now().await;
         } else {

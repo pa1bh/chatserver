@@ -249,6 +249,8 @@ ulimit -n 10000  # in beide terminals (server + benchmark)
 
 Getest met `rust-wsbench` → `rust-ws` op Apple M1 Pro:
 
+#### Veel clients, lage rate (broadcast-bound)
+
 | Clients | Rate/min | Throughput | P50 | P95 | P99 | Status |
 |---------|----------|------------|-----|-----|-----|--------|
 | 200 | 200 | 664 msg/s | 1ms | 4ms | 4ms | ✓ Excellent |
@@ -257,10 +259,22 @@ Getest met `rust-wsbench` → `rust-ws` op Apple M1 Pro:
 | 1500 | 30 | 744 msg/s | 16ms | 285ms | 1054ms | ⚠️ Grens |
 | 2000 | 30 | 983 msg/s | 10s | 20s | 21s | ❌ Overbelast |
 
-**Limieten:**
-- Max clients: 2000+ (geen connection issues)
-- Max broadcasts/s met <100ms latency: ~1 miljoen
-- Sweet spot: 1000 clients @ 60 msg/min
+#### Weinig clients, hoge rate (throughput-bound)
+
+| Clients | Rate/min | Throughput | P50 | P99 | Status |
+|---------|----------|------------|-----|-----|--------|
+| 10 | 30000 | 2968 msg/s | 0ms | 2ms | ✓ Excellent |
+| 10 | 60000 | 4356 msg/s | 0ms | 2ms | ✓ Excellent |
+| 10 | 75000 | overflow | 5.5s | 5.9s | ❌ Overbelast |
+
+**Server limieten:**
+
+| Bottleneck | Limiet | Scenario |
+|------------|--------|----------|
+| Max clients | 2000+ | Geen connection issues |
+| Max inbound msg/s | ~5000 | Weinig clients, hoge rate |
+| Max broadcasts/s | ~1M | Veel clients, lage rate |
+| Sweet spot | 1000 clients @ 60/min | <100ms P99 |
 
 ### Rust vs Bun backend
 
