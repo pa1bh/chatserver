@@ -1,0 +1,14 @@
+/Users/bashendriks/Projects/bunserve/rust-wsmonitor/target/release/deps/thiserror-143b120149273a9d.d: /Users/bashendriks/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/lib.rs /Users/bashendriks/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/aserror.rs /Users/bashendriks/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/display.rs /Users/bashendriks/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/var.rs /Users/bashendriks/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/private.rs /Users/bashendriks/Projects/bunserve/rust-wsmonitor/target/release/build/thiserror-3fc99bc63313b4b6/out/private.rs
+
+/Users/bashendriks/Projects/bunserve/rust-wsmonitor/target/release/deps/libthiserror-143b120149273a9d.rlib: /Users/bashendriks/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/lib.rs /Users/bashendriks/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/aserror.rs /Users/bashendriks/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/display.rs /Users/bashendriks/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/var.rs /Users/bashendriks/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/private.rs /Users/bashendriks/Projects/bunserve/rust-wsmonitor/target/release/build/thiserror-3fc99bc63313b4b6/out/private.rs
+
+/Users/bashendriks/Projects/bunserve/rust-wsmonitor/target/release/deps/libthiserror-143b120149273a9d.rmeta: /Users/bashendriks/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/lib.rs /Users/bashendriks/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/aserror.rs /Users/bashendriks/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/display.rs /Users/bashendriks/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/var.rs /Users/bashendriks/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/private.rs /Users/bashendriks/Projects/bunserve/rust-wsmonitor/target/release/build/thiserror-3fc99bc63313b4b6/out/private.rs
+
+/Users/bashendriks/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/lib.rs:
+/Users/bashendriks/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/aserror.rs:
+/Users/bashendriks/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/display.rs:
+/Users/bashendriks/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/var.rs:
+/Users/bashendriks/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/private.rs:
+/Users/bashendriks/Projects/bunserve/rust-wsmonitor/target/release/build/thiserror-3fc99bc63313b4b6/out/private.rs:
+
+# env-dep:OUT_DIR=/Users/bashendriks/Projects/bunserve/rust-wsmonitor/target/release/build/thiserror-3fc99bc63313b4b6/out
