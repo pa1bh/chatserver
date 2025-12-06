@@ -1,4 +1,4 @@
-# bunserve
+# cbxchat
 
 Chatserver met een Express/Bun frontend en een Rust WebSocket backend.
 
@@ -103,16 +103,16 @@ De Rust backend kan ook in een container draaien:
 cd rust-ws
 
 # Bouwen
-docker build -t bunserve-ws .
+docker build -t cbxchat-ws .
 
 # Starten
-docker run -p 3001:3001 bunserve-ws
+docker run -p 3001:3001 cbxchat-ws
 
 # Met logging
-docker run -p 3001:3001 -e RUST_LOG=info bunserve-ws
+docker run -p 3001:3001 -e RUST_LOG=info cbxchat-ws
 
 # Andere poort
-docker run -p 8080:8080 -e WS_PORT=8080 bunserve-ws
+docker run -p 8080:8080 -e WS_PORT=8080 cbxchat-ws
 ```
 
 De image gebruikt een multi-stage build (~15MB) met Alpine Linux.

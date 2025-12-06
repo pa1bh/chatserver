@@ -1,5 +1,5 @@
 {
-  "name": "bunserve",
+  "name": "cbxchat",
   "module": "index.ts",
   "type": "module",
   "scripts": {
