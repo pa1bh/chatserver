@@ -37,6 +37,10 @@ struct Args {
     /// Only show summary
     #[arg(long, default_value = "false")]
     quiet: bool,
+
+    /// Flood mode: send as fast as possible (ignores --rate)
+    #[arg(long, default_value = "false")]
+    flood: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -87,6 +91,9 @@ fn random_phrase() -> String {
 }
 
 fn random_interval(base_ms: u64) -> Duration {
+    if base_ms == 0 {
+        return Duration::ZERO;
+    }
     let mut rng = rand::rng();
     let variance = (base_ms as f64 * 0.3) as i64;
     let offset = rng.random_range(-variance..=variance);
@@ -120,9 +127,10 @@ async fn run_client(
     end_time: Instant,
     stats: Arc<Stats>,
     quiet: bool,
+    flood: bool,
 ) {
     let name = format!("bench-{}", client_id);
-    let base_interval_ms = 60_000 / rate as u64;
+    let base_interval_ms = if flood { 0 } else { 60_000 / rate.max(1) as u64 };
 
     // Connect
     let ws_stream = match tokio_tungstenite::connect_async(&url).await {
@@ -209,7 +217,12 @@ async fn run_client(
         stats.messages_sent.fetch_add(1, Ordering::Relaxed);
         msg_count += 1;
 
-        tokio::time::sleep(random_interval(base_interval_ms)).await;
+        let interval = random_interval(base_interval_ms);
+        if interval.is_zero() {
+            tokio::task::yield_now().await;
+        } else {
+            tokio::time::sleep(interval).await;
+        }
     }
 
     // Close connection
@@ -230,17 +243,23 @@ fn percentile(sorted: &[u64], p: f64) -> u64 {
 async fn main() {
     let args = Args::parse();
 
+    let rate_display = if args.flood {
+        "FLOOD (max speed)".to_string()
+    } else {
+        format!("{} msg/min/client", args.rate)
+    };
+
     println!(
         r#"
 WebSocket Benchmark (Rust)
 ═══════════════════════════════════════
 URL:        {}
 Clients:    {}
-Rate:       {} msg/min/client
+Rate:       {}
 Duration:   {}s
 ═══════════════════════════════════════
 "#,
-        args.url, args.clients, args.rate, args.duration
+        args.url, args.clients, rate_display, args.duration
     );
 
     let stats = Arc::new(Stats::new());
@@ -260,9 +279,11 @@ Duration:   {}s
             let url = args.url.clone();
             let stats = stats.clone();
             let quiet = args.quiet;
+            let flood = args.flood;
+            let rate = args.rate;
 
             handles.push(tokio::spawn(async move {
-                run_client(client_id, url, args.rate, end_time, stats, quiet).await;
+                run_client(client_id, url, rate, end_time, stats, quiet, flood).await;
             }));
         }
 
