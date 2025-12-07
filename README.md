@@ -1,33 +1,33 @@
 # cbxchat
 
-Real-time chatserver met een Bun/Express frontend en high-performance Rust WebSocket backend.
+Real-time chat server with a Bun/Express frontend and high-performance Rust WebSocket backend.
 
-## Overzicht
+## Overview
 
-| Component | Pad | Beschrijving |
-|-----------|-----|--------------|
-| HTTP Server | `index.ts` | Express frontend, serveert chat UI |
-| WS Backend | `rust-ws/` | Rust/Axum WebSocket server (productie) |
+| Component | Path | Description |
+|-----------|------|-------------|
+| HTTP Server | `index.ts` | Express frontend, serves chat UI |
+| WS Backend | `rust-ws/` | Rust/Axum WebSocket server (production) |
 | CLI Client | `rust-client/` | Terminal chat client |
-| GUI Client | `rust-gui/` | Grafische client (egui) |
+| GUI Client | `rust-gui/` | Graphical client (egui) |
 | Health Monitor | `rust-wsmonitor/` | Health check tool |
 | Benchmark | `rust-wsbench/` | Load testing tool |
 | Bun WS | `ws-server.ts` | TypeScript backend (deprecated) |
 
 ---
 
-## Installeren
+## Installation
 
 ```bash
 bun install
 ```
 
-## Starten
+## Running
 
 HTTP (frontend + status):
 ```bash
 bun run index.ts
-# of: bun run start:http
+# or: bun run start:http
 ```
 
 WebSocket backend (Rust):
@@ -36,139 +36,139 @@ cd rust-ws
 cargo run --release
 ```
 
-Tijdens ontwikkeling:
+During development:
 ```bash
-bun run dev:http              # frontend met auto-reload
+bun run dev:http              # frontend with auto-reload
 cd rust-ws && cargo run       # Rust backend
 ```
 
-## Configuratie
+## Configuration
 - `PORT` (default `3000`): HTTP server.
-- `HOST` (default `0.0.0.0`): Bind adres HTTP server.
+- `HOST` (default `0.0.0.0`): HTTP server bind address.
 - `WS_PORT` (default `3001`): WebSocket server.
-- `WS_HOST`: optioneel hostnaam/IP voor de WebSocket URL (handig achter reverse proxy).
-- `WS_URL`: optioneel volledige WebSocket-URL; anders gebruikt de frontend de host uit het HTTP-verzoek + `WS_PORT` (handig voor LAN-clients zodat er niet naar `localhost` wordt verbonden).
-- `LOG_TARGET`: `stdout` (default) of `file`.
-- `LOG_FILE`: pad als `LOG_TARGET=file` of bij `--log=file:pad`.
-- CLI: `--log=stdout` of `--log=file:server.log` werkt op beide entrypoints.
+- `WS_HOST`: optional hostname/IP for WebSocket URL (useful behind reverse proxy).
+- `WS_URL`: optional full WebSocket URL; otherwise the frontend uses the host from the HTTP request + `WS_PORT` (useful for LAN clients to avoid connecting to `localhost`).
+- `LOG_TARGET`: `stdout` (default) or `file`.
+- `LOG_FILE`: path when `LOG_TARGET=file` or with `--log=file:path`.
+- CLI: `--log=stdout` or `--log=file:server.log` works on both entrypoints.
 
 ## Routes
-- `/` - chatfrontend (index + JS/CSS).
-- `/status` - JSON met runtime info: Bun-versie, omgeving, ports, uptime, requests, memory.
+- `/` - chat frontend (index + JS/CSS).
+- `/status` - JSON with runtime info: Bun version, environment, ports, uptime, requests, memory.
 
-## WebSocket contract
+## WebSocket Contract
 - Inbound (client → server):
   - `{ type: "chat", text }`
   - `{ type: "setName", name }`
   - `{ type: "status" }`
   - `{ type: "listUsers" }`
-  - `{ type: "ping", token? }` — optionele token voor response validatie
+  - `{ type: "ping", token? }` — optional token for response validation
 - Outbound (server → client):
   - `chat` `{ from, text, at }`
   - `system` `{ text, at }`
   - `ackName` `{ name, at }`
   - `status` `{ uptimeSeconds, userCount, messagesSent, messagesPerSecond, memoryMb }` ¹
   - `listUsers` `{ users: [{ id, name, ip }] }` ¹
-  - `pong` `{ token?, at }` — response op ping met dezelfde token
+  - `pong` `{ token?, at }` — response to ping with the same token
   - `error` `{ message }`
 
-¹ Rust backend only: `messagesPerSecond`, `memoryMb`, en `ip` velden
+¹ Rust backend only: `messagesPerSecond`, `memoryMb`, and `ip` fields
 
-## Frontend commands
-- `/name nieuwe_naam` — wijzig gebruikersnaam.
-- `/status` — vraag serverstatus op.
-- `/users` — lijst huidige gebruikers.
-- `/ping [token]` — meet roundtrip tijd naar server.
+## Frontend Commands
+- `/name new_name` — change username.
+- `/status` — request server status.
+- `/users` — list current users.
+- `/ping [token]` — measure roundtrip time to server.
 
 ## Logging
-Logging gaat naar stdout tenzij `LOG_TARGET=file` of `--log=file:pad` is gezet. Backend logt join/leave/bericht events; HTTP logt startinfo.
+Logging goes to stdout unless `LOG_TARGET=file` or `--log=file:path` is set. Backend logs join/leave/message events; HTTP logs startup info.
 
-## Rust WebSocket backend
+## Rust WebSocket Backend
 
-De WebSocket backend is geschreven in Rust met Axum en Tokio.
+The WebSocket backend is written in Rust with Axum and Tokio.
 
-- **Locatie:** `rust-ws/`
-- **Vereisten:** Rust + Cargo
+- **Location:** `rust-ws/`
+- **Requirements:** Rust + Cargo
 
 ### Logging
 
-Standaard is logging uitgeschakeld voor maximale performance. Gebruik `RUST_LOG` om logging in te schakelen:
+By default, logging is disabled for maximum performance. Use `RUST_LOG` to enable logging:
 
 ```bash
-# Geen logging (default) — voor benchmarks en productie
+# No logging (default) — for benchmarks and production
 cargo run
 
 # Info level: startup, connect/disconnect events
 RUST_LOG=info cargo run
 
-# Debug level: alle berichten en broadcasts
+# Debug level: all messages and broadcasts
 RUST_LOG=debug cargo run
 ```
 
-### Configuratie
+### Configuration
 
-De Rust backend leest dezelfde `WS_PORT` environment variable als de HTTP server.
+The Rust backend reads the same `WS_PORT` environment variable as the HTTP server.
 
 ### Docker
 
-De Rust backend kan ook in een container draaien:
+The Rust backend can also run in a container:
 
 ```bash
 cd rust-ws
 
-# Bouwen
+# Build
 docker build -t cbxchat-ws .
 
-# Starten
+# Run
 docker run -p 3001:3001 cbxchat-ws
 
-# Met logging
+# With logging
 docker run -p 3001:3001 -e RUST_LOG=info cbxchat-ws
 
-# Andere poort
+# Different port
 docker run -p 8080:8080 -e WS_PORT=8080 cbxchat-ws
 ```
 
-De image gebruikt een multi-stage build (~15MB) met Alpine Linux.
+The image uses a multi-stage build (~15MB) with Alpine Linux.
 
-## Bun/TypeScript WebSocket backend (deprecated)
+## Bun/TypeScript WebSocket Backend (deprecated)
 
-Er is ook een Bun/TypeScript versie van de WebSocket backend beschikbaar voor testen.
+A Bun/TypeScript version of the WebSocket backend is also available for testing.
 
 ```bash
 bun run ws-server.ts
-# of: bun run start:ws
+# or: bun run start:ws
 
-# Met auto-reload:
+# With auto-reload:
 bun run dev:ws
 ```
 
-Deze versie heeft hetzelfde protocol als de Rust backend, maar lagere performance (zie Benchmarking).
+This version has the same protocol as the Rust backend, but lower performance (see Benchmarking).
 
 ## Native Clients
 
-Twee native Rust clients beschikbaar:
+Two native Rust clients available:
 
 ### CLI Client
 
-Command-line chat client voor terminal gebruik.
+Command-line chat client for terminal use.
 
 ```bash
 cd rust-client
 cargo build --release
-./target/release/chat                    # lokaal
+./target/release/chat                    # local
 ./target/release/chat ws://server:3001   # remote
 ```
 
 Commands: `/name`, `/status`, `/users`, `/ping`, `/help`, `/quit`
 
 Features:
-- Command history met pijltjestoetsen (↑/↓)
-- Cursor navigatie (←/→)
+- Command history with arrow keys (↑/↓)
+- Cursor navigation (←/→)
 
 ### GUI Client
 
-Grafische chat client gebouwd met egui.
+Graphical chat client built with egui.
 
 ```bash
 cd rust-gui
@@ -177,32 +177,32 @@ cargo build --release
 ```
 
 Features:
-- Configureerbare server URL
-- Connect/disconnect knop
-- Berichten versturen met Enter
+- Configurable server URL
+- Connect/disconnect button
+- Send messages with Enter
 - Commands: `/name`, `/status`, `/users`, `/ping`
 
 ### Health Monitor (wsmonitor)
 
-CLI tool voor health checks en monitoring in scripts.
+CLI tool for health checks and monitoring in scripts.
 
 ```bash
 cd rust-wsmonitor
 cargo build --release
 ```
 
-#### Gebruik
+#### Usage
 
 ```bash
-# Silent health check (voor scripts)
+# Silent health check (for scripts)
 ./target/release/wsmonitor && echo "OK" || echo "FAIL"
 
-# Verbose met roundtrip tijd
+# Verbose with roundtrip time
 ./target/release/wsmonitor -v
 # PING ws://127.0.0.1:3001 (1 pings)
 # seq=1: time=0.25ms
 
-# Meerdere pings met statistieken
+# Multiple pings with statistics
 ./target/release/wsmonitor -v --count=4
 # PING ws://127.0.0.1:3001 (4 pings)
 # seq=1: time=0.25ms
@@ -218,76 +218,76 @@ cargo build --release
 ./target/release/wsmonitor -v ws://server:3001
 ```
 
-#### Opties
+#### Options
 
-| Optie | Beschrijving |
-|-------|--------------|
-| `-v`, `--verbose` | Toon response tijden |
-| `-c<N>`, `--count=<N>` | Aantal pings (default: 1) |
-| `-h`, `--help` | Help tonen |
+| Option | Description |
+|--------|-------------|
+| `-v`, `--verbose` | Show response times |
+| `-c<N>`, `--count=<N>` | Number of pings (default: 1) |
+| `-h`, `--help` | Show help |
 
-#### Exit codes
+#### Exit Codes
 
-| Code | Betekenis |
-|------|-----------|
-| `0` | Alle pings succesvol |
-| `1` | Verbinding of ping gefaald |
+| Code | Meaning |
+|------|---------|
+| `0` | All pings successful |
+| `1` | Connection or ping failed |
 
-#### Voorbeelden in scripts
+#### Script Examples
 
 ```bash
 # Cron health check
 */5 * * * * /path/to/wsmonitor || echo "WS server down" | mail -s "Alert" admin@example.com
 
-# Wacht tot server beschikbaar is
+# Wait until server is available
 until wsmonitor; do sleep 1; done && echo "Server is up"
 
-# Monitoring met output
+# Monitoring with output
 wsmonitor -v --count=10 | tee -a /var/log/ws-health.log
 ```
 
-## Testen met websocat
+## Testing with websocat
 
-Installeer [websocat](https://github.com/vi/websocat) om de WebSocket backend handmatig te testen:
+Install [websocat](https://github.com/vi/websocat) to manually test the WebSocket backend:
 
 ```bash
 # macOS
 brew install websocat
 
-# of via cargo
+# or via cargo
 cargo install websocat
 ```
 
-### Voorbeeldsessie
+### Example Session
 
 ```bash
 $ websocat -t ws://127.0.0.1:3001
 {"type":"ackName","name":"guest-a1b2c3","at":1733312400000}
 {"type":"status"}
 {"type":"status","uptimeSeconds":42.5,"userCount":1,"messagesSent":0}
-{"type":"chat","text":"Hallo!"}
-{"type":"chat","from":"guest-a1b2c3","text":"Hallo!","at":1733312410000}
+{"type":"chat","text":"Hello!"}
+{"type":"chat","from":"guest-a1b2c3","text":"Hello!","at":1733312410000}
 {"type":"setName","name":"Bas"}
 {"type":"ackName","name":"Bas","at":1733312420000}
 {"type":"listUsers"}
 {"type":"listUsers","users":[{"id":"a1b2c3d4-...","name":"Bas"}]}
 ```
 
-De regels zonder `$` prefix zijn server responses; regels die je zelf typt zijn JSON requests.
+Lines without `$` prefix are server responses; lines you type are JSON requests.
 
 ## Benchmarking
 
-Stress test tools om de WebSocket backend te testen.
+Stress test tools to test the WebSocket backend.
 
-### Rust Benchmark (aanbevolen)
+### Rust Benchmark (recommended)
 
-Native Rust benchmark voor maximale performance en hoge client counts.
+Native Rust benchmark for maximum performance and high client counts.
 
 ```bash
 cd rust-wsbench
 cargo build --release
 
-# Basis test
+# Basic test
 ./target/release/wsbench --clients=100 --rate=120 --duration=60
 
 # High load test
@@ -299,78 +299,78 @@ cargo build --release
 
 ### Bun/TypeScript Benchmark
 
-Er zijn twee versies in `tools/`:
-- `ws-benchmark.ts` — Worker threads (max ~100 clients door Bun bug)
-- `ws-benchmark-async.ts` — Async (stabieler voor hogere loads)
+Two versions available in `tools/`:
+- `ws-benchmark.ts` — Worker threads (max ~100 clients due to Bun bug)
+- `ws-benchmark-async.ts` — Async (more stable for higher loads)
 
 ```bash
 bun run tools/ws-benchmark-async.ts --clients=200 --rate=600 --duration=60
 ```
 
-### Opties
+### Options
 
-| Optie | Default | Beschrijving |
-|-------|---------|--------------|
+| Option | Default | Description |
+|--------|---------|-------------|
 | `--url` | `ws://127.0.0.1:3001` | WebSocket server URL |
-| `--clients` | `10` | Aantal concurrent clients |
-| `--rate` | `60` | Berichten per minuut per client |
-| `--duration` | `30` | Testduur in seconden |
-| `--quiet` | `false` | Alleen eindresultaten tonen |
+| `--clients` | `10` | Number of concurrent clients |
+| `--rate` | `60` | Messages per minute per client |
+| `--duration` | `30` | Test duration in seconds |
+| `--quiet` | `false` | Show only final results |
 
 ### Output
 
-De benchmark toont:
+The benchmark shows:
 - Live progress (connected clients, sent/received messages)
-- Totaal verzonden/ontvangen berichten
+- Total sent/received messages
 - Throughput (msg/s)
-- Latency statistieken (average, P50, P95, P99)
+- Latency statistics (average, P50, P95, P99)
 
-**Tip:** Vergroot de file descriptor limiet voor hoge client counts:
+**Tip:** Increase the file descriptor limit for high client counts:
 ```bash
-ulimit -n 10000  # in beide terminals (server + benchmark)
+ulimit -n 10000  # in both terminals (server + benchmark)
 ```
 
-### Benchmark resultaten (Rust backend)
+### Benchmark Results (Rust backend)
 
-Getest met `rust-wsbench` → `rust-ws` op Apple M1 Pro:
+Tested with `rust-wsbench` → `rust-ws` on Apple M1 Pro:
 
-#### Veel clients, lage rate (broadcast-bound)
+#### Many clients, low rate (broadcast-bound)
 
 | Clients | Rate/min | Throughput | P50 | P95 | P99 | Status |
 |---------|----------|------------|-----|-----|-----|--------|
 | 200 | 200 | 664 msg/s | 1ms | 4ms | 4ms | ✓ Excellent |
 | 500 | 120 | 995 msg/s | 3ms | 5ms | 7ms | ✓ Excellent |
-| 1000 | 60 | 990 msg/s | 9ms | 18ms | 91ms | ✓ Goed |
-| 1500 | 30 | 744 msg/s | 16ms | 285ms | 1054ms | ⚠️ Grens |
-| 2000 | 30 | 983 msg/s | 10s | 20s | 21s | ❌ Overbelast |
+| 1000 | 60 | 990 msg/s | 9ms | 18ms | 91ms | ✓ Good |
+| 1500 | 30 | 744 msg/s | 16ms | 285ms | 1054ms | ⚠️ Limit |
+| 2000 | 30 | 983 msg/s | 10s | 20s | 21s | ❌ Overloaded |
 
-#### Weinig clients, hoge rate (throughput-bound)
+#### Few clients, high rate (throughput-bound)
 
 | Clients | Rate/min | Throughput | P50 | P99 | Status |
 |---------|----------|------------|-----|-----|--------|
 | 10 | 30000 | 2968 msg/s | 0ms | 2ms | ✓ Excellent |
 | 10 | 60000 | 4356 msg/s | 0ms | 2ms | ✓ Excellent |
-| 10 | 75000 | overflow | 5.5s | 5.9s | ❌ Overbelast |
+| 10 | 75000 | overflow | 5.5s | 5.9s | ❌ Overloaded |
 
-**Server limieten:**
+**Server limits:**
 
-| Bottleneck | Limiet | Scenario |
-|------------|--------|----------|
-| Max clients | 2000+ | Geen connection issues |
-| Max inbound msg/s | ~5000 | Weinig clients, hoge rate |
-| Max broadcasts/s | ~1M | Veel clients, lage rate |
+| Bottleneck | Limit | Scenario |
+|------------|-------|----------|
+| Max clients | 2000+ | No connection issues |
+| Max inbound msg/s | ~5000 | Few clients, high rate |
+| Max broadcasts/s | ~1M | Many clients, low rate |
 | Sweet spot | 1000 clients @ 60/min | <100ms P99 |
 
-### Rust vs Bun backend
+### Rust vs Bun Backend
 
-Directe vergelijking met 500 clients @ 120 msg/min:
+Direct comparison with 500 clients @ 120 msg/min:
 
-| Metric | Rust | Bun | Verschil |
-|--------|------|-----|----------|
+| Metric | Rust | Bun | Difference |
+|--------|------|-----|------------|
 | Clients connected | 500/500 (100%) | 382/500 (76%) | Rust +31% |
-| P50 latency | **3ms** | 8078ms | Rust 2700× sneller |
-| P95 latency | **5ms** | 32224ms | Rust 6400× sneller |
-| P99 latency | **7ms** | 39556ms | Rust 5600× sneller |
+| P50 latency | **3ms** | 8078ms | Rust 2700× faster |
+| P95 latency | **5ms** | 32224ms | Rust 6400× faster |
+| P99 latency | **7ms** | 39556ms | Rust 5600× faster |
 | Errors | 0 | 0 | - |
 
-**Conclusie:** De Rust backend levert instant message delivery (<10ms) waar de Bun backend 8-40 seconden vertraging heeft onder dezelfde load. Dit is de reden dat Rust de standaard backend is.
+**Conclusion:** The Rust backend delivers instant message delivery (<10ms) where the Bun backend has 8-40 seconds delay under the same load. This is why Rust is the default backend.
