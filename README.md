@@ -1,6 +1,20 @@
 # cbxchat
 
-Chatserver met een Express/Bun frontend en een Rust WebSocket backend.
+Real-time chatserver met een Bun/Express frontend en high-performance Rust WebSocket backend.
+
+## Overzicht
+
+| Component | Pad | Beschrijving |
+|-----------|-----|--------------|
+| HTTP Server | `index.ts` | Express frontend, serveert chat UI |
+| WS Backend | `rust-ws/` | Rust/Axum WebSocket server (productie) |
+| CLI Client | `rust-client/` | Terminal chat client |
+| GUI Client | `rust-gui/` | Grafische client (egui) |
+| Health Monitor | `rust-wsmonitor/` | Health check tool |
+| Benchmark | `rust-wsbench/` | Load testing tool |
+| Bun WS | `ws-server.ts` | TypeScript backend (deprecated) |
+
+---
 
 ## Installeren
 
