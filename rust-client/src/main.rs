@@ -230,12 +230,10 @@ async fn main() {
                             let trimmed = input.trim().to_string();
                             if !trimmed.is_empty() {
                                 // Save commands to history
-                                if trimmed.starts_with('/') {
-                                    if history.last() != Some(&trimmed) {
-                                        history.push(trimmed.clone());
-                                        if history.len() > MAX_HISTORY {
-                                            history.remove(0);
-                                        }
+                                if trimmed.starts_with('/') && history.last() != Some(&trimmed) {
+                                    history.push(trimmed.clone());
+                                    if history.len() > MAX_HISTORY {
+                                        history.remove(0);
                                     }
                                 }
 

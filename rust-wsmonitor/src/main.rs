@@ -33,8 +33,8 @@ fn parse_args() -> Args {
         count: 1,
     };
 
-    let mut iter = std::env::args().skip(1);
-    while let Some(arg) = iter.next() {
+    let iter = std::env::args().skip(1);
+    for arg in iter {
         match arg.as_str() {
             "-v" | "--print" | "--verbose" => args.verbose = true,
             "-h" | "--help" => {

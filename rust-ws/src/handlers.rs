@@ -225,7 +225,7 @@ pub fn broadcast(state: &AppState, payload: &Outgoing, except: Option<Uuid>) {
     debug!(targets, except = ?except, kind = %payload.kind(), "Broadcast payload");
 
     for entry in state.clients.iter() {
-        if except.map_or(false, |ex| ex == *entry.key()) {
+        if except.is_some_and(|ex| ex == *entry.key()) {
             continue;
         }
         if let Err(err) = entry.value().tx.send(Message::Text(text.clone().into())) {
