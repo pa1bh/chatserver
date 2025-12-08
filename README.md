@@ -374,3 +374,32 @@ Direct comparison with 500 clients @ 120 msg/min:
 | Errors | 0 | 0 | - |
 
 **Conclusion:** The Rust backend delivers instant message delivery (<10ms) where the Bun backend has 8-40 seconds delay under the same load. This is why Rust is the default backend.
+
+## CI/CD
+
+GitHub Actions workflows run automatically on push and pull requests.
+
+| Workflow | Trigger | Checks |
+|----------|---------|--------|
+| `ci-frontend.yml` | `*.ts`, `*.json`, `public/**` | Bun install, TypeScript typecheck, HTTP server startup |
+| `ci-rust.yml` | `rust-*/**` | `cargo fmt`, `cargo clippy`, `cargo build` for all Rust projects |
+| `integration-test.yml` | All pushes/PRs | Builds WS server + wsmonitor, runs health check |
+
+### Running Locally
+
+```bash
+# Frontend checks
+bun install
+bun x tsc --noEmit
+
+# Rust checks (per project)
+cd rust-ws
+cargo fmt --check
+cargo clippy -- -D warnings
+cargo build --release
+
+# Integration test
+./rust-ws/target/release/rust-ws &
+sleep 2
+./rust-wsmonitor/target/release/wsmonitor -v --count=5
+```
