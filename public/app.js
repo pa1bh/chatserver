@@ -49,14 +49,71 @@ const scrollToBottom = () => {
   });
 };
 
-const appendMessage = (type, text, meta = "", isMine = false) => {
+// Simple markdown parser for AI responses
+const parseMarkdown = (text) => {
+  // Escape HTML first
+  const escape = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  // Process code blocks first (```code```)
+  const codeBlocks = [];
+  text = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
+    codeBlocks.push(`<pre><code>${escape(code.trim())}</code></pre>`);
+    return `\x00CODEBLOCK${codeBlocks.length - 1}\x00`;
+  });
+
+  // Process inline code (`code`)
+  const inlineCode = [];
+  text = text.replace(/`([^`]+)`/g, (_, code) => {
+    inlineCode.push(`<code>${escape(code)}</code>`);
+    return `\x00INLINE${inlineCode.length - 1}\x00`;
+  });
+
+  // Escape remaining HTML
+  text = escape(text);
+
+  // Bold (**text** or __text__)
+  text = text.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  text = text.replace(/__(.+?)__/g, "<strong>$1</strong>");
+
+  // Italic (*text* or _text_)
+  text = text.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+  text = text.replace(/_([^_]+)_/g, "<em>$1</em>");
+
+  // Headers (### text)
+  text = text.replace(/^### (.+)$/gm, "<h4>$1</h4>");
+  text = text.replace(/^## (.+)$/gm, "<h3>$1</h3>");
+  text = text.replace(/^# (.+)$/gm, "<h3>$1</h3>");
+
+  // Lists (- item or * item)
+  text = text.replace(/^[-*] (.+)$/gm, "<li>$1</li>");
+  text = text.replace(/(<li>.*<\/li>\n?)+/g, "<ul>$&</ul>");
+
+  // Numbered lists (1. item)
+  text = text.replace(/^\d+\. (.+)$/gm, "<li>$1</li>");
+
+  // Line breaks
+  text = text.replace(/\n/g, "<br>");
+
+  // Restore code blocks and inline code
+  text = text.replace(/\x00CODEBLOCK(\d+)\x00/g, (_, i) => codeBlocks[i]);
+  text = text.replace(/\x00INLINE(\d+)\x00/g, (_, i) => inlineCode[i]);
+
+  return text;
+};
+
+const appendMessage = (type, text, meta = "", isMine = false, useMarkdown = false) => {
   const item = document.createElement("div");
   item.className = `msg ${type} ${isMine ? "mine" : ""}`;
   const metaEl = document.createElement("div");
   metaEl.className = "meta";
   metaEl.textContent = meta;
   const body = document.createElement("div");
-  body.textContent = text;
+  body.className = "body";
+  if (useMarkdown) {
+    body.innerHTML = parseMarkdown(text);
+  } else {
+    body.textContent = text;
+  }
   item.appendChild(metaEl);
   item.appendChild(body);
   messagesEl.appendChild(item);
@@ -169,7 +226,8 @@ const handleMessage = (event) => {
     case "ai": {
       const isMine = payload.from === currentName;
       const time = new Date(payload.at).toLocaleTimeString();
-      appendMessage("ai", `Q: ${payload.prompt}\n\nA: ${payload.response}`, `${payload.from} • ${time}`, isMine);
+      const formatted = `**Q:** ${payload.prompt}\n\n**A:** ${payload.response}`;
+      appendMessage("ai", formatted, `${payload.from} • ${time}`, isMine, true);
       break;
     }
     default:
