@@ -11,7 +11,9 @@
     "start:ws": "bun run ws-server.ts"
   },
   "devDependencies": {
-    "bun-types": "latest"
+    "@types/express": "^5.0.6",
+    "bun-types": "latest",
+    "typescript": "latest"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"

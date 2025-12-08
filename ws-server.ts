@@ -1,5 +1,7 @@
-import type { ServerWebSocket } from "bun";
+import type { ServerWebSocket, Server } from "bun";
 import { createLogger } from "./logger";
+
+type WsData = { id: string; ip: string };
 
 type Client = {
   id: string;
@@ -27,11 +29,11 @@ let messagesSent = 0;
 
 const { info, warn, error, target } = createLogger("ws");
 
-const clients = new Map<string, ServerWebSocket>();
+const clients = new Map<string, ServerWebSocket<WsData>>();
 const clientInfo = new Map<string, Client>();
 const clientIp = new Map<string, string>();
 
-const send = (ws: ServerWebSocket, payload: OutgoingMessage) => {
+const send = (ws: ServerWebSocket<WsData>, payload: OutgoingMessage) => {
   ws.send(JSON.stringify(payload));
 };
 
@@ -76,28 +78,23 @@ const buildStatus = () => ({
   messagesSent,
 });
 
-const server = Bun.serve<{ id?: string; ip?: string }>({
+const server = Bun.serve<WsData>({
   port,
   fetch(req, server) {
     const forwarded = req.headers.get("x-forwarded-for");
     const ip =
       forwarded?.split(",")[0].trim() ||
       req.headers.get("x-real-ip") ||
-      req.remoteAddr?.address ||
-      req.remoteAddr?.hostname ||
+      server.requestIP(req)?.address ||
       "unknown";
-    if (server.upgrade(req, { data: { ip } })) return undefined;
+    if (server.upgrade(req, { data: { id: "", ip } })) return undefined;
     return new Response("Upgrade Required", { status: 426 });
   },
   websocket: {
     open(ws) {
       const id = crypto.randomUUID();
       const name = `guest-${id.slice(0, 6)}`;
-      const ip =
-        (ws.data as any)?.ip ||
-        ws.remoteAddress?.address ||
-        ws.remoteAddress?.hostname ||
-        "unknown";
+      const ip = ws.data?.ip || ws.remoteAddress || "unknown";
       ws.data = { id, ip };
       clients.set(id, ws);
       if (ip) clientIp.set(id, ip);
@@ -112,7 +109,7 @@ const server = Bun.serve<{ id?: string; ip?: string }>({
       const client = clientInfo.get(clientId);
       if (!client) return ws.close();
 
-      const text = typeof message === "string" ? message : new TextDecoder().decode(message as ArrayBuffer);
+      const text = typeof message === "string" ? message : new TextDecoder().decode(message);
       const parsed = parseIncoming(text);
       if (parsed.type === "error") {
         send(ws, parsed);

@@ -1,3 +1,5 @@
+import { appendFile } from "fs/promises";
+
 type LogLevel = "info" | "warn" | "error";
 
 type LogTarget =
@@ -18,7 +20,7 @@ function parseCliLogTarget(): LogTarget | null {
       kind: "file",
       path,
       writer: async (text: string) => {
-        await Bun.write(path, text, { append: true });
+        await appendFile(path, text);
       },
     };
   }
@@ -33,7 +35,7 @@ function parseEnvLogTarget(): LogTarget | null {
       kind: "file",
       path,
       writer: async (text: string) => {
-        await Bun.write(path, text, { append: true });
+        await appendFile(path, text);
       },
     };
   }

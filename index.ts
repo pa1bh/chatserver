@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Request, Response, NextFunction } from "express";
 import os from "os";
 import { createLogger } from "./logger";
 
@@ -54,22 +54,22 @@ const getLocalUrls = (p: number) => {
 };
 const indexTemplate = await Bun.file("public/index.html").text();
 
-app.use((req, _res, next) => {
+app.use((_req: Request, _res: Response, next: NextFunction) => {
   requestCount += 1;
   next();
 });
 
-app.get("/", (_req, res) => {
-  const wsUrl = buildWsUrl(_req.headers.host);
+app.get("/", (req: Request, res: Response) => {
+  const wsUrl = buildWsUrl(req.headers.host);
   const page = indexTemplate.replace(/__WS_URL__/g, wsUrl);
   res.type("html").send(page);
 });
 
 app.use(express.static("public"));
 
-app.get("/status", (_req, res) => {
+app.get("/status", (req: Request, res: Response) => {
   const memory = process.memoryUsage();
-  const wsUrl = buildWsUrl(_req.headers.host);
+  const wsUrl = buildWsUrl(req.headers.host);
 
   res.json({
     status: "ok",
