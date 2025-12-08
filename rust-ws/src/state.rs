@@ -40,11 +40,13 @@ impl AppState {
     }
 
     pub fn messages_sent(&self) -> u64 {
-        self.messages_sent.load(std::sync::atomic::Ordering::Relaxed)
+        self.messages_sent
+            .load(std::sync::atomic::Ordering::Relaxed)
     }
 
     pub fn increment_messages(&self) {
-        self.messages_sent.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        self.messages_sent
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     }
 
     pub async fn memory_mb(&self) -> f64 {

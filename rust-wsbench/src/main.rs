@@ -131,7 +131,11 @@ async fn run_client(
 ) {
     let name = format!("bench-{}", client_id);
     // Calculate interval in microseconds: 60 seconds = 60_000_000 microseconds
-    let base_interval_us = if flood { 0 } else { 60_000_000 / rate.max(1) as u64 };
+    let base_interval_us = if flood {
+        0
+    } else {
+        60_000_000 / rate.max(1) as u64
+    };
 
     // Connect
     let ws_stream = match tokio_tungstenite::connect_async(&url).await {

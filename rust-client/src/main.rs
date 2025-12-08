@@ -83,7 +83,13 @@ fn format_message(msg: &Incoming) -> String {
         Incoming::Chat { from, text } => format!("\x1b[1m{}\x1b[0m: {}", from, text),
         Incoming::System { text } => format!("\x1b[33m* {}\x1b[0m", text),
         Incoming::AckName { name } => format!("\x1b[32m✓ Your name is now: {}\x1b[0m", name),
-        Incoming::Status { uptime_seconds, user_count, messages_sent, messages_per_second, memory_mb } => {
+        Incoming::Status {
+            uptime_seconds,
+            user_count,
+            messages_sent,
+            messages_per_second,
+            memory_mb,
+        } => {
             format!(
                 "\x1b[36m[Status] users: {} | uptime: {}s | msgs: {} | msg/s: {} | mem: {:.2} MB\x1b[0m",
                 user_count, uptime_seconds, messages_sent, messages_per_second, memory_mb
@@ -98,17 +104,29 @@ fn format_message(msg: &Incoming) -> String {
             let ip_width = users.iter().map(|u| u.ip.len()).max().unwrap_or(2).max(2);
 
             let mut output = String::from("\x1b[36m");
-            output.push_str(&format!("\r\n  {:<name_width$}  {:<ip_width$}  {}\r\n", "NAME", "IP", "ID"));
-            output.push_str(&format!("  {:-<name_width$}  {:-<ip_width$}  {:-<36}\r\n", "", "", ""));
+            output.push_str(&format!(
+                "\r\n  {:<name_width$}  {:<ip_width$}  {}\r\n",
+                "NAME", "IP", "ID"
+            ));
+            output.push_str(&format!(
+                "  {:-<name_width$}  {:-<ip_width$}  {:-<36}\r\n",
+                "", "", ""
+            ));
             for u in users {
-                output.push_str(&format!("  {:<name_width$}  {:<ip_width$}  {}\r\n", u.name, u.ip, u.id));
+                output.push_str(&format!(
+                    "  {:<name_width$}  {:<ip_width$}  {}\r\n",
+                    u.name, u.ip, u.id
+                ));
             }
             output.push_str("\x1b[0m");
             output
         }
         Incoming::Error { message } => format!("\x1b[31m✗ Error: {}\x1b[0m", message),
         Incoming::Pong { token } => {
-            let token_str = token.as_ref().map(|t| format!(" (token: {}...)", &t[..8.min(t.len())])).unwrap_or_default();
+            let token_str = token
+                .as_ref()
+                .map(|t| format!(" (token: {}...)", &t[..8.min(t.len())]))
+                .unwrap_or_default();
             format!("\x1b[36m[Pong]{}\x1b[0m", token_str)
         }
     }
@@ -132,7 +150,9 @@ fn parse_command(input: &str) -> Option<Outgoing> {
                     let _ = io::stdout().flush();
                     None
                 } else {
-                    Some(Outgoing::SetName { name: arg.to_string() })
+                    Some(Outgoing::SetName {
+                        name: arg.to_string(),
+                    })
                 }
             }
             "/status" => Some(Outgoing::Status),
@@ -160,7 +180,9 @@ fn parse_command(input: &str) -> Option<Outgoing> {
             }
         }
     } else {
-        Some(Outgoing::Chat { text: input.to_string() })
+        Some(Outgoing::Chat {
+            text: input.to_string(),
+        })
     }
 }
 
@@ -237,7 +259,10 @@ async fn main() {
                                 cursor_pos -= 1;
                                 print!("\r\x1b[K> {}", input);
                                 if cursor_pos < input.len() {
-                                    let _ = execute!(io::stdout(), cursor::MoveToColumn((cursor_pos + 2) as u16));
+                                    let _ = execute!(
+                                        io::stdout(),
+                                        cursor::MoveToColumn((cursor_pos + 2) as u16)
+                                    );
                                 }
                                 let _ = io::stdout().flush();
                             }
@@ -287,7 +312,9 @@ async fn main() {
                             print!("\r\x1b[K> {}", input);
                             let _ = io::stdout().flush();
                         }
-                        KeyCode::Char('c') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                        KeyCode::Char('c')
+                            if key_event.modifiers.contains(KeyModifiers::CONTROL) =>
+                        {
                             let _ = terminal::disable_raw_mode();
                             println!("\r");
                             std::process::exit(0);
@@ -297,7 +324,10 @@ async fn main() {
                             cursor_pos += 1;
                             print!("\r\x1b[K> {}", input);
                             if cursor_pos < input.len() {
-                                let _ = execute!(io::stdout(), cursor::MoveToColumn((cursor_pos + 2) as u16));
+                                let _ = execute!(
+                                    io::stdout(),
+                                    cursor::MoveToColumn((cursor_pos + 2) as u16)
+                                );
                             }
                             let _ = io::stdout().flush();
                         }

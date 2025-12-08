@@ -19,7 +19,11 @@ pub enum Incoming {
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum Outgoing {
     #[serde(rename = "chat")]
-    Chat { from: String, text: String, at: u128 },
+    Chat {
+        from: String,
+        text: String,
+        at: u128,
+    },
     #[serde(rename = "system")]
     System { text: String, at: u128 },
     #[serde(rename = "ackName")]

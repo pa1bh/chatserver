@@ -31,9 +31,7 @@ async fn main() {
 
     let state = AppState::new();
 
-    let app = Router::new()
-        .route("/", get(ws_handler))
-        .with_state(state);
+    let app = Router::new().route("/", get(ws_handler)).with_state(state);
 
     let listener = TcpListener::bind(addr).await.expect("bind to address");
     info!(port, "Rust WS server start");

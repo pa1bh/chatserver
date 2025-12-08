@@ -122,21 +122,19 @@ async fn main() {
         }
 
         // Wait for pong with timeout
-        let timeout = tokio::time::timeout(
-            std::time::Duration::from_secs(5),
-            async {
-                while let Some(msg) = read.next().await {
-                    if let Ok(Message::Text(text)) = msg {
-                        if let Ok(pong) = serde_json::from_str::<PongResponse>(&text) {
-                            if pong.msg_type == "pong" && pong.token.as_ref() == Some(&token) {
-                                return Some(start.elapsed());
-                            }
+        let timeout = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+            while let Some(msg) = read.next().await {
+                if let Ok(Message::Text(text)) = msg {
+                    if let Ok(pong) = serde_json::from_str::<PongResponse>(&text) {
+                        if pong.msg_type == "pong" && pong.token.as_ref() == Some(&token) {
+                            return Some(start.elapsed());
                         }
                     }
                 }
-                None
             }
-        ).await;
+            None
+        })
+        .await;
 
         match timeout {
             Ok(Some(elapsed)) => {
@@ -180,7 +178,10 @@ async fn main() {
         );
         if success_count > 0 {
             let avg = total_time / success_count as f64;
-            eprintln!("rtt min/avg/max = {:.2}/{:.2}/{:.2} ms", min_time, avg, max_time);
+            eprintln!(
+                "rtt min/avg/max = {:.2}/{:.2}/{:.2} ms",
+                min_time, avg, max_time
+            );
         }
     }
 

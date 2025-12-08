@@ -173,7 +173,9 @@ impl ChatApp {
                 match cmd.as_str() {
                     "/name" => {
                         if !arg.is_empty() {
-                            let _ = tx.send(Outgoing::SetName { name: arg.to_string() });
+                            let _ = tx.send(Outgoing::SetName {
+                                name: arg.to_string(),
+                            });
                         }
                     }
                     "/status" => {
@@ -192,7 +194,8 @@ impl ChatApp {
                         let _ = tx.send(Outgoing::Ping { token: Some(token) });
                     }
                     _ => {
-                        self.messages.push(ChatLine::Error(format!("Unknown command: {}", cmd)));
+                        self.messages
+                            .push(ChatLine::Error(format!("Unknown command: {}", cmd)));
                     }
                 }
             } else {
@@ -215,9 +218,14 @@ impl ChatApp {
                     }
                     Incoming::AckName { name } => {
                         self.username = name.clone();
-                        self.messages.push(ChatLine::System(format!("Your name is now: {}", name)));
+                        self.messages
+                            .push(ChatLine::System(format!("Your name is now: {}", name)));
                     }
-                    Incoming::Status { uptime_seconds, user_count, messages_sent } => {
+                    Incoming::Status {
+                        uptime_seconds,
+                        user_count,
+                        messages_sent,
+                    } => {
                         self.messages.push(ChatLine::Status(format!(
                             "Uptime: {}s | Users: {} | Messages: {}",
                             uptime_seconds, user_count, messages_sent
@@ -225,7 +233,8 @@ impl ChatApp {
                     }
                     Incoming::ListUsers { users } => {
                         let names: Vec<_> = users.iter().map(|u| u.name.as_str()).collect();
-                        self.messages.push(ChatLine::Status(format!("Users: {}", names.join(", "))));
+                        self.messages
+                            .push(ChatLine::Status(format!("Users: {}", names.join(", "))));
                     }
                     Incoming::Error { message } => {
                         self.messages.push(ChatLine::Error(message));
@@ -234,7 +243,10 @@ impl ChatApp {
                         let roundtrip = token.as_ref().and_then(|t| {
                             self.pending_pings.remove(t).map(|start| start.elapsed())
                         });
-                        let token_str = token.as_ref().map(|t| format!(" (token: {}...)", &t[..8.min(t.len())])).unwrap_or_default();
+                        let token_str = token
+                            .as_ref()
+                            .map(|t| format!(" (token: {}...)", &t[..8.min(t.len())]))
+                            .unwrap_or_default();
                         if let Some(rtt) = roundtrip {
                             self.messages.push(ChatLine::Status(format!(
                                 "Pong! roundtrip: {:.2}ms{}",
@@ -242,7 +254,8 @@ impl ChatApp {
                                 token_str
                             )));
                         } else {
-                            self.messages.push(ChatLine::Status(format!("Pong!{}", token_str)));
+                            self.messages
+                                .push(ChatLine::Status(format!("Pong!{}", token_str)));
                         }
                     }
                 }
@@ -253,9 +266,11 @@ impl ChatApp {
             while let Ok(status) = rx.try_recv() {
                 self.connected = status;
                 if status {
-                    self.messages.push(ChatLine::System("Connected!".to_string()));
+                    self.messages
+                        .push(ChatLine::System("Connected!".to_string()));
                 } else {
-                    self.messages.push(ChatLine::System("Disconnected".to_string()));
+                    self.messages
+                        .push(ChatLine::System("Disconnected".to_string()));
                 }
             }
         }
@@ -275,7 +290,8 @@ impl eframe::App for ChatApp {
                     if ui.button("Disconnect").clicked() {
                         self.ws_tx = None;
                         self.connected = false;
-                        self.messages.push(ChatLine::System("Disconnected".to_string()));
+                        self.messages
+                            .push(ChatLine::System("Disconnected".to_string()));
                     }
                     ui.label(egui::RichText::new("● Connected").color(egui::Color32::GREEN));
                     if !self.username.is_empty() {
@@ -295,7 +311,7 @@ impl eframe::App for ChatApp {
                 let response = ui.add_sized(
                     [ui.available_width() - 60.0, 24.0],
                     egui::TextEdit::singleline(&mut self.input)
-                        .hint_text("Type a message or /command...")
+                        .hint_text("Type a message or /command..."),
                 );
 
                 if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
@@ -309,7 +325,11 @@ impl eframe::App for ChatApp {
             });
 
             ui.add_space(4.0);
-            ui.label(egui::RichText::new("/name /status /users /ping").small().weak());
+            ui.label(
+                egui::RichText::new("/name /status /users /ping")
+                    .small()
+                    .weak(),
+            );
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -326,13 +346,22 @@ impl eframe::App for ChatApp {
                                 });
                             }
                             ChatLine::System(text) => {
-                                ui.label(egui::RichText::new(format!("* {}", text)).italics().color(egui::Color32::YELLOW));
+                                ui.label(
+                                    egui::RichText::new(format!("* {}", text))
+                                        .italics()
+                                        .color(egui::Color32::YELLOW),
+                                );
                             }
                             ChatLine::Error(text) => {
-                                ui.label(egui::RichText::new(format!("✗ {}", text)).color(egui::Color32::RED));
+                                ui.label(
+                                    egui::RichText::new(format!("✗ {}", text))
+                                        .color(egui::Color32::RED),
+                                );
                             }
                             ChatLine::Status(text) => {
-                                ui.label(egui::RichText::new(text).color(egui::Color32::LIGHT_BLUE));
+                                ui.label(
+                                    egui::RichText::new(text).color(egui::Color32::LIGHT_BLUE),
+                                );
                             }
                         }
                     }

@@ -50,7 +50,10 @@ async fn handle_socket(state: AppState, socket: WebSocket, addr: SocketAddr) {
     info!(id = %id, name = %name, ip = %addr.ip(), "Client connected");
 
     // Send welcome messages
-    client.send(&Outgoing::AckName { name: name.clone(), at: now_ms() });
+    client.send(&Outgoing::AckName {
+        name: name.clone(),
+        at: now_ms(),
+    });
     broadcast(
         &state,
         &Outgoing::System {
@@ -109,8 +112,8 @@ async fn handle_socket(state: AppState, socket: WebSocket, addr: SocketAddr) {
 }
 
 async fn process_message(state: &AppState, id: Uuid, text: String) -> Result<(), String> {
-    let incoming: Incoming = serde_json::from_str(&text)
-        .map_err(|_| "Bericht moet geldig JSON zijn.".to_string())?;
+    let incoming: Incoming =
+        serde_json::from_str(&text).map_err(|_| "Bericht moet geldig JSON zijn.".to_string())?;
 
     match incoming {
         Incoming::Chat { text } => {
@@ -123,7 +126,9 @@ async fn process_message(state: &AppState, id: Uuid, text: String) -> Result<(),
             }
 
             let (name, ip) = {
-                let entry = state.clients.get(&id)
+                let entry = state
+                    .clients
+                    .get(&id)
                     .ok_or_else(|| "Onbekende gebruiker".to_string())?;
                 (entry.value().name.clone(), entry.value().ip.clone())
             };
@@ -150,7 +155,10 @@ async fn process_message(state: &AppState, id: Uuid, text: String) -> Result<(),
                 if let Some(mut entry) = state.clients.get_mut(&id) {
                     let old = entry.value().name.clone();
                     entry.name = trimmed.to_string();
-                    entry.send(&Outgoing::AckName { name: entry.name.clone(), at: now_ms() });
+                    entry.send(&Outgoing::AckName {
+                        name: entry.name.clone(),
+                        at: now_ms(),
+                    });
                     Some((old, entry.name.clone(), entry.ip.clone()))
                 } else {
                     None
@@ -198,7 +206,10 @@ async fn process_message(state: &AppState, id: Uuid, text: String) -> Result<(),
         }
         Incoming::Ping { token } => {
             if let Some(entry) = state.clients.get(&id) {
-                entry.value().send(&Outgoing::Pong { token, at: now_ms() });
+                entry.value().send(&Outgoing::Pong {
+                    token,
+                    at: now_ms(),
+                });
             }
         }
     }
