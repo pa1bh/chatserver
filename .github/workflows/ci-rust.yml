@@ -1,0 +1,85 @@
+name: CI Rust
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'rust-*/**'
+      - '.github/workflows/ci-rust.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'rust-*/**'
+      - '.github/workflows/ci-rust.yml'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        project:
+          - rust-ws
+          - rust-client
+          - rust-wsmonitor
+          - rust-wsbench
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ${{ matrix.project }}
+
+      - name: Check formatting
+        working-directory: ${{ matrix.project }}
+        run: cargo fmt --check
+
+      - name: Clippy
+        working-directory: ${{ matrix.project }}
+        run: cargo clippy -- -D warnings
+
+      - name: Build
+        working-directory: ${{ matrix.project }}
+        run: cargo build --release
+
+  # GUI client has additional dependencies
+  check-gui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
+            libxkbcommon-dev libssl-dev libgtk-3-dev
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust-gui
+
+      - name: Check formatting
+        working-directory: rust-gui
+        run: cargo fmt --check
+
+      - name: Clippy
+        working-directory: rust-gui
+        run: cargo clippy -- -D warnings
+
+      - name: Build
+        working-directory: rust-gui
+        run: cargo build --release

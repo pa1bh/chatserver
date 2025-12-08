@@ -1,0 +1,59 @@
+name: Integration Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            rust-ws
+            rust-wsmonitor
+
+      - name: Build WebSocket server
+        working-directory: rust-ws
+        run: cargo build --release
+
+      - name: Build wsmonitor
+        working-directory: rust-wsmonitor
+        run: cargo build --release
+
+      - name: Start WebSocket server
+        run: |
+          ./rust-ws/target/release/rust-ws &
+          echo "WS_PID=$!" >> $GITHUB_ENV
+          sleep 2
+
+      - name: Run health check with wsmonitor
+        run: |
+          ./rust-wsmonitor/target/release/wsmonitor -v --count=5
+
+      - name: Verify server handles multiple connections
+        run: |
+          # Run 3 monitors in parallel to verify concurrent connections
+          ./rust-wsmonitor/target/release/wsmonitor -v &
+          ./rust-wsmonitor/target/release/wsmonitor -v &
+          ./rust-wsmonitor/target/release/wsmonitor -v &
+          wait
+
+      - name: Stop WebSocket server
+        if: always()
+        run: |
+          if [ -n "$WS_PID" ]; then
+            kill $WS_PID || true
+          fi
