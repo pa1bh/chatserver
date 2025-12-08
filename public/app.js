@@ -227,7 +227,12 @@ const handleMessage = (event) => {
       const isMine = payload.from === currentName;
       const time = new Date(payload.at).toLocaleTimeString();
       const formatted = `**Q:** ${payload.prompt}\n\n**A:** ${payload.response}`;
-      appendMessage("ai", formatted, `${payload.from} • ${time}`, isMine, true);
+      // Build stats line
+      const stats = [`${payload.responseMs}ms`];
+      if (payload.tokens) stats.push(`${payload.tokens} tokens`);
+      if (payload.cost !== undefined && payload.cost !== null) stats.push(`$${payload.cost.toFixed(4)}`);
+      const meta = `${payload.from} • ${time} • ${stats.join(" | ")}`;
+      appendMessage("ai", formatted, meta, isMine, true);
       break;
     }
     default:

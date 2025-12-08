@@ -67,6 +67,7 @@ struct ChatMessage {
 #[derive(Deserialize)]
 struct ChatResponse {
     choices: Vec<Choice>,
+    usage: Option<Usage>,
 }
 
 #[derive(Deserialize)]
@@ -77,6 +78,21 @@ struct Choice {
 #[derive(Deserialize)]
 struct ResponseMessage {
     content: String,
+}
+
+#[derive(Deserialize)]
+struct Usage {
+    total_tokens: Option<u32>,
+    cost: Option<f64>,
+}
+
+/// Result of an AI query including response content and stats
+#[derive(Debug, Clone)]
+pub struct AiResponse {
+    pub content: String,
+    pub response_ms: u64,
+    pub tokens: Option<u32>,
+    pub cost: Option<f64>,
 }
 
 struct RateLimitEntry {
@@ -133,7 +149,7 @@ impl AiClient {
         Ok(())
     }
 
-    pub async fn query(&self, user_id: Uuid, prompt: &str) -> Result<String, String> {
+    pub async fn query(&self, user_id: Uuid, prompt: &str) -> Result<AiResponse, String> {
         if !self.is_enabled() {
             return Err("AI is niet geactiveerd op deze server.".to_string());
         }
@@ -160,6 +176,8 @@ impl AiClient {
             }],
         };
 
+        let start = Instant::now();
+
         let response = self
             .http
             .post(OPENROUTER_API_URL)
@@ -172,6 +190,8 @@ impl AiClient {
                 error!(?e, "OpenRouter request failed");
                 "AI service tijdelijk niet beschikbaar.".to_string()
             })?;
+
+        let response_ms = start.elapsed().as_millis() as u64;
 
         if !response.status().is_success() {
             let status = response.status();
@@ -191,8 +211,22 @@ impl AiClient {
             .map(|c| c.message.content.clone())
             .unwrap_or_else(|| "Geen antwoord ontvangen.".to_string());
 
-        debug!(response_len = content.len(), "AI response received");
+        let tokens = chat_response.usage.as_ref().and_then(|u| u.total_tokens);
+        let cost = chat_response.usage.as_ref().and_then(|u| u.cost);
 
-        Ok(content)
+        debug!(
+            response_len = content.len(),
+            response_ms,
+            ?tokens,
+            ?cost,
+            "AI response received"
+        );
+
+        Ok(AiResponse {
+            content,
+            response_ms,
+            tokens,
+            cost,
+        })
     }
 }

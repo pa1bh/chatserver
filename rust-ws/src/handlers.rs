@@ -221,13 +221,16 @@ async fn process_message(state: &AppState, id: Uuid, text: String) -> Result<(),
 
             // Query AI (this may take a few seconds)
             match state.ai.query(id, &prompt).await {
-                Ok(response) => {
+                Ok(ai_response) => {
                     broadcast(
                         state,
                         &Outgoing::Ai {
                             from: name.clone(),
                             prompt: prompt.clone(),
-                            response,
+                            response: ai_response.content,
+                            response_ms: ai_response.response_ms,
+                            tokens: ai_response.tokens,
+                            cost: ai_response.cost,
                             at: now_ms(),
                         },
                         None,

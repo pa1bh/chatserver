@@ -53,6 +53,10 @@ enum Incoming {
         from: String,
         prompt: String,
         response: String,
+        #[serde(rename = "responseMs")]
+        response_ms: u64,
+        tokens: Option<u32>,
+        cost: Option<f64>,
     },
 }
 
@@ -74,6 +78,7 @@ enum ChatLine {
         from: String,
         prompt: String,
         response: String,
+        stats: String,
     },
 }
 
@@ -290,11 +295,22 @@ impl ChatApp {
                         from,
                         prompt,
                         response,
+                        response_ms,
+                        tokens,
+                        cost,
                     } => {
+                        let mut stats_parts = vec![format!("{}ms", response_ms)];
+                        if let Some(t) = tokens {
+                            stats_parts.push(format!("{} tokens", t));
+                        }
+                        if let Some(c) = cost {
+                            stats_parts.push(format!("${:.4}", c));
+                        }
                         self.messages.push(ChatLine::Ai {
                             from,
                             prompt,
                             response,
+                            stats: stats_parts.join(" | "),
                         });
                     }
                 }
@@ -406,6 +422,7 @@ impl eframe::App for ChatApp {
                                 from,
                                 prompt,
                                 response,
+                                stats,
                             } => {
                                 ui.vertical(|ui| {
                                     ui.label(
@@ -418,6 +435,11 @@ impl eframe::App for ChatApp {
                                     ui.label(
                                         egui::RichText::new(response)
                                             .color(egui::Color32::LIGHT_BLUE),
+                                    );
+                                    ui.label(
+                                        egui::RichText::new(stats)
+                                            .small()
+                                            .color(egui::Color32::GRAY),
                                     );
                                 });
                             }

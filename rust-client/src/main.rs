@@ -63,6 +63,10 @@ enum Incoming {
         from: String,
         prompt: String,
         response: String,
+        #[serde(rename = "responseMs")]
+        response_ms: u64,
+        tokens: Option<u32>,
+        cost: Option<f64>,
     },
 }
 
@@ -142,10 +146,23 @@ fn format_message(msg: &Incoming) -> String {
             from,
             prompt,
             response,
+            response_ms,
+            tokens,
+            cost,
         } => {
+            let mut stats = vec![format!("{}ms", response_ms)];
+            if let Some(t) = tokens {
+                stats.push(format!("{} tokens", t));
+            }
+            if let Some(c) = cost {
+                stats.push(format!("${:.4}", c));
+            }
             format!(
-                "\x1b[35m[AI] {}\x1b[0m asked: {}\r\n\x1b[36m{}\x1b[0m",
-                from, prompt, response
+                "\x1b[35m[AI] {}\x1b[0m asked: {} \x1b[90m({})\x1b[0m\r\n\x1b[36m{}\x1b[0m",
+                from,
+                prompt,
+                stats.join(" | "),
+                response
             )
         }
     }
