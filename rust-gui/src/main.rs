@@ -20,6 +20,8 @@ enum Outgoing {
     ListUsers,
     #[serde(rename = "ping")]
     Ping { token: Option<String> },
+    #[serde(rename = "ai")]
+    Ai { prompt: String },
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -46,6 +48,12 @@ enum Incoming {
     Error { message: String },
     #[serde(rename = "pong")]
     Pong { token: Option<String> },
+    #[serde(rename = "ai")]
+    Ai {
+        from: String,
+        prompt: String,
+        response: String,
+    },
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -55,10 +63,18 @@ struct UserInfo {
 
 #[derive(Clone)]
 enum ChatLine {
-    Chat { from: String, text: String },
+    Chat {
+        from: String,
+        text: String,
+    },
     System(String),
     Error(String),
     Status(String),
+    Ai {
+        from: String,
+        prompt: String,
+        response: String,
+    },
 }
 
 struct ChatApp {
@@ -193,6 +209,18 @@ impl ChatApp {
                         self.pending_pings.insert(token.clone(), Instant::now());
                         let _ = tx.send(Outgoing::Ping { token: Some(token) });
                     }
+                    "/ai" => {
+                        if arg.is_empty() {
+                            self.messages
+                                .push(ChatLine::Error("Usage: /ai <question>".to_string()));
+                        } else {
+                            self.messages
+                                .push(ChatLine::System("AI is thinking...".to_string()));
+                            let _ = tx.send(Outgoing::Ai {
+                                prompt: arg.to_string(),
+                            });
+                        }
+                    }
                     _ => {
                         self.messages
                             .push(ChatLine::Error(format!("Unknown command: {}", cmd)));
@@ -257,6 +285,17 @@ impl ChatApp {
                             self.messages
                                 .push(ChatLine::Status(format!("Pong!{}", token_str)));
                         }
+                    }
+                    Incoming::Ai {
+                        from,
+                        prompt,
+                        response,
+                    } => {
+                        self.messages.push(ChatLine::Ai {
+                            from,
+                            prompt,
+                            response,
+                        });
                     }
                 }
             }
@@ -326,7 +365,7 @@ impl eframe::App for ChatApp {
 
             ui.add_space(4.0);
             ui.label(
-                egui::RichText::new("/name /status /users /ping")
+                egui::RichText::new("/name /status /users /ping /ai")
                     .small()
                     .weak(),
             );
@@ -362,6 +401,25 @@ impl eframe::App for ChatApp {
                                 ui.label(
                                     egui::RichText::new(text).color(egui::Color32::LIGHT_BLUE),
                                 );
+                            }
+                            ChatLine::Ai {
+                                from,
+                                prompt,
+                                response,
+                            } => {
+                                ui.vertical(|ui| {
+                                    ui.label(
+                                        egui::RichText::new(format!(
+                                            "[AI] {} asked: {}",
+                                            from, prompt
+                                        ))
+                                        .color(egui::Color32::from_rgb(180, 100, 255)),
+                                    );
+                                    ui.label(
+                                        egui::RichText::new(response)
+                                            .color(egui::Color32::LIGHT_BLUE),
+                                    );
+                                });
                             }
                         }
                     }

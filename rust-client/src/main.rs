@@ -26,6 +26,8 @@ enum Outgoing {
     ListUsers,
     #[serde(rename = "ping")]
     Ping { token: Option<String> },
+    #[serde(rename = "ai")]
+    Ai { prompt: String },
 }
 
 #[derive(Debug, Deserialize)]
@@ -56,6 +58,12 @@ enum Incoming {
     Error { message: String },
     #[serde(rename = "pong")]
     Pong { token: Option<String> },
+    #[serde(rename = "ai")]
+    Ai {
+        from: String,
+        prompt: String,
+        response: String,
+    },
 }
 
 #[derive(Debug, Deserialize)]
@@ -72,6 +80,7 @@ fn print_help() {
     print!("  /status           Show server status\r\n");
     print!("  /users            List connected users\r\n");
     print!("  /ping [token]     Ping server (measures roundtrip)\r\n");
+    print!("  /ai <question>    Ask AI a question\r\n");
     print!("  /help             Show this help\r\n");
     print!("  /quit             Exit the client\r\n");
     print!("\x1b[0m\r\n");
@@ -129,6 +138,16 @@ fn format_message(msg: &Incoming) -> String {
                 .unwrap_or_default();
             format!("\x1b[36m[Pong]{}\x1b[0m", token_str)
         }
+        Incoming::Ai {
+            from,
+            prompt,
+            response,
+        } => {
+            format!(
+                "\x1b[35m[AI] {}\x1b[0m asked: {}\r\n\x1b[36m{}\x1b[0m",
+                from, prompt, response
+            )
+        }
     }
 }
 
@@ -164,6 +183,19 @@ fn parse_command(input: &str) -> Option<Outgoing> {
                     arg.to_string()
                 };
                 Some(Outgoing::Ping { token: Some(token) })
+            }
+            "/ai" => {
+                if arg.is_empty() {
+                    print!("\x1b[31mUsage: /ai <question>\x1b[0m\r\n");
+                    let _ = io::stdout().flush();
+                    None
+                } else {
+                    print!("\x1b[90mAI is thinking...\x1b[0m\r\n");
+                    let _ = io::stdout().flush();
+                    Some(Outgoing::Ai {
+                        prompt: arg.to_string(),
+                    })
+                }
             }
             "/help" => {
                 print_help();

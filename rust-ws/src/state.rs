@@ -9,6 +9,7 @@ use sysinfo::{ProcessesToUpdate, System};
 use tokio::sync::{mpsc, RwLock};
 use uuid::Uuid;
 
+use crate::ai::AiClient;
 use crate::protocol::{Outgoing, UserInfo};
 
 pub type Clients = Arc<DashMap<Uuid, Client>>;
@@ -19,15 +20,17 @@ pub struct AppState {
     pub started_at: Instant,
     pub messages_sent: Arc<AtomicU64>,
     pub system_info: Arc<RwLock<System>>,
+    pub ai: Arc<AiClient>,
 }
 
 impl AppState {
-    pub fn new() -> Self {
+    pub fn new(ai_client: AiClient) -> Self {
         Self {
             clients: Arc::new(DashMap::new()),
             started_at: Instant::now(),
             messages_sent: Arc::new(AtomicU64::new(0)),
             system_info: Arc::new(RwLock::new(System::new())),
+            ai: Arc::new(ai_client),
         }
     }
 

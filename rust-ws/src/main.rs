@@ -1,3 +1,4 @@
+mod ai;
 mod handlers;
 mod protocol;
 mod state;
@@ -9,11 +10,15 @@ use axum::{routing::get, Router};
 use tokio::net::TcpListener;
 use tracing::info;
 
+use ai::{AiClient, AiConfig};
 use handlers::ws_handler;
 use state::AppState;
 
 #[tokio::main]
 async fn main() {
+    // Load .env file if present
+    let _ = dotenvy::dotenv();
+
     // Default: no logging (warn level). Use RUST_LOG=info or RUST_LOG=debug for output.
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -29,7 +34,11 @@ async fn main() {
         .unwrap_or(3001);
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
 
-    let state = AppState::new();
+    // Initialize AI client
+    let ai_config = AiConfig::from_env();
+    let ai_client = AiClient::new(ai_config);
+
+    let state = AppState::new(ai_client);
 
     let app = Router::new().route("/", get(ws_handler)).with_state(state);
 

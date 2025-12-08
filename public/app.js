@@ -87,6 +87,12 @@ const handleCommand = (raw) => {
       pendingPings.set(token, performance.now());
       return sendPayload({ type: "ping", token });
     }
+    case "ai": {
+      const prompt = rest.join(" ");
+      if (!prompt) return appendMessage("error", "Gebruik: /ai <vraag>", "client");
+      appendMessage("system", "AI denkt na...", "client");
+      return sendPayload({ type: "ai", prompt });
+    }
     default:
       return appendMessage("error", `Onbekend commando: /${cmd}`, "client");
   }
@@ -158,6 +164,12 @@ const handleMessage = (event) => {
       } else {
         appendMessage("system", `Pong!${token ? ` (token: ${token.slice(0, 8)}...)` : ""}`, "server");
       }
+      break;
+    }
+    case "ai": {
+      const isMine = payload.from === currentName;
+      const time = new Date(payload.at).toLocaleTimeString();
+      appendMessage("ai", `Q: ${payload.prompt}\n\nA: ${payload.response}`, `${payload.from} • ${time}`, isMine);
       break;
     }
     default:

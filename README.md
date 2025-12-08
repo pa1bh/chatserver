@@ -63,22 +63,26 @@ cd rust-ws && cargo run       # Rust backend
   - `{ type: "status" }`
   - `{ type: "listUsers" }`
   - `{ type: "ping", token? }` — optional token for response validation
+  - `{ type: "ai", prompt }` — ask AI a question ¹
 - Outbound (server → client):
   - `chat` `{ from, text, at }`
   - `system` `{ text, at }`
   - `ackName` `{ name, at }`
-  - `status` `{ uptimeSeconds, userCount, messagesSent, messagesPerSecond, memoryMb }` ¹
-  - `listUsers` `{ users: [{ id, name, ip }] }` ¹
+  - `status` `{ uptimeSeconds, userCount, messagesSent, messagesPerSecond, memoryMb }` ²
+  - `listUsers` `{ users: [{ id, name, ip }] }` ²
   - `pong` `{ token?, at }` — response to ping with the same token
+  - `ai` `{ from, prompt, response, at }` — AI response broadcast ¹
   - `error` `{ message }`
 
-¹ Rust backend only: `messagesPerSecond`, `memoryMb`, and `ip` fields
+¹ Rust backend only, requires AI configuration
+² Rust backend only: `messagesPerSecond`, `memoryMb`, and `ip` fields
 
 ## Frontend Commands
 - `/name new_name` — change username.
 - `/status` — request server status.
 - `/users` — list current users.
 - `/ping [token]` — measure roundtrip time to server.
+- `/ai <question>` — ask AI a question (requires configuration).
 
 ## Logging
 Logging goes to stdout unless `LOG_TARGET=file` or `--log=file:path` is set. Backend logs join/leave/message events; HTTP logs startup info.
@@ -130,6 +134,44 @@ docker run -p 8080:8080 -e WS_PORT=8080 cbxchat-ws
 ```
 
 The image uses a multi-stage build (~15MB) with Alpine Linux.
+
+## AI Integration
+
+The server supports AI-powered Q&A via OpenRouter. Questions asked with `/ai` are sent to the AI and responses are broadcast to all users.
+
+### Setup
+
+1. Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Get an API key from [OpenRouter](https://openrouter.ai/keys)
+
+3. Edit `.env`:
+   ```bash
+   OPENROUTER_API_KEY=sk-or-v1-your-key-here
+   AI_ENABLED=true
+   AI_MODEL=openai/gpt-4o
+   AI_RATE_LIMIT=5
+   ```
+
+### Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OPENROUTER_API_KEY` | - | Required. Your OpenRouter API key |
+| `AI_ENABLED` | `false` | Enable/disable AI feature |
+| `AI_MODEL` | `openai/gpt-4o` | Model to use (see [OpenRouter models](https://openrouter.ai/models)) |
+| `AI_RATE_LIMIT` | `5` | Max requests per user per minute |
+
+### Usage
+
+```
+/ai What is the meaning of life?
+```
+
+The question and AI response are broadcast to all connected users.
 
 ## Bun/TypeScript WebSocket Backend (deprecated)
 

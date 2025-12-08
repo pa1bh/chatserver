@@ -212,6 +212,35 @@ async fn process_message(state: &AppState, id: Uuid, text: String) -> Result<(),
                 });
             }
         }
+        Incoming::Ai { prompt } => {
+            let name = state
+                .clients
+                .get(&id)
+                .map(|e| e.value().name.clone())
+                .unwrap_or_else(|| "unknown".to_string());
+
+            // Query AI (this may take a few seconds)
+            match state.ai.query(id, &prompt).await {
+                Ok(response) => {
+                    broadcast(
+                        state,
+                        &Outgoing::Ai {
+                            from: name.clone(),
+                            prompt: prompt.clone(),
+                            response,
+                            at: now_ms(),
+                        },
+                        None,
+                    );
+                    debug!(from = %name, id = %id, prompt_len = prompt.len(), "AI response sent");
+                }
+                Err(err) => {
+                    if let Some(entry) = state.clients.get(&id) {
+                        entry.value().send(&Outgoing::Error { message: err });
+                    }
+                }
+            }
+        }
     }
 
     Ok(())

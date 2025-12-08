@@ -13,6 +13,8 @@ pub enum Incoming {
     ListUsers,
     #[serde(rename = "ping")]
     Ping { token: Option<String> },
+    #[serde(rename = "ai")]
+    Ai { prompt: String },
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -47,6 +49,13 @@ pub enum Outgoing {
     Error { message: String },
     #[serde(rename = "pong")]
     Pong { token: Option<String>, at: u128 },
+    #[serde(rename = "ai")]
+    Ai {
+        from: String,
+        prompt: String,
+        response: String,
+        at: u128,
+    },
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -66,6 +75,7 @@ impl Outgoing {
             Outgoing::ListUsers { .. } => "listUsers",
             Outgoing::Error { .. } => "error",
             Outgoing::Pong { .. } => "pong",
+            Outgoing::Ai { .. } => "ai",
         }
     }
 }
