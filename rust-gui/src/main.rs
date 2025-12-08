@@ -35,12 +35,17 @@ enum Incoming {
     AckName { name: String },
     #[serde(rename = "status")]
     Status {
+        version: String,
         #[serde(rename = "uptimeSeconds")]
         uptime_seconds: u64,
         #[serde(rename = "userCount")]
         user_count: usize,
         #[serde(rename = "messagesSent")]
         messages_sent: u64,
+        #[serde(rename = "messagesPerSecond")]
+        messages_per_second: f64,
+        #[serde(rename = "memoryMb")]
+        memory_mb: f64,
     },
     #[serde(rename = "listUsers")]
     ListUsers { users: Vec<UserInfo> },
@@ -255,13 +260,16 @@ impl ChatApp {
                             .push(ChatLine::System(format!("Your name is now: {}", name)));
                     }
                     Incoming::Status {
+                        version,
                         uptime_seconds,
                         user_count,
                         messages_sent,
+                        messages_per_second,
+                        memory_mb,
                     } => {
                         self.messages.push(ChatLine::Status(format!(
-                            "Uptime: {}s | Users: {} | Messages: {}",
-                            uptime_seconds, user_count, messages_sent
+                            "v{} | Uptime: {}s | Users: {} | Messages: {} | msg/s: {} | mem: {:.2} MB",
+                            version, uptime_seconds, user_count, messages_sent, messages_per_second, memory_mb
                         )));
                     }
                     Incoming::ListUsers { users } => {

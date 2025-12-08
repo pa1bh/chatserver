@@ -190,6 +190,7 @@ async fn process_message(state: &AppState, id: Uuid, text: String) -> Result<(),
 
             if let Some(entry) = state.clients.get(&id) {
                 entry.value().send(&Outgoing::Status {
+                    version: env!("CARGO_PKG_VERSION"),
                     uptime_seconds: uptime_secs,
                     user_count: count,
                     messages_sent: messages,

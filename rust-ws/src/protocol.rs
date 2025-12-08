@@ -32,6 +32,7 @@ pub enum Outgoing {
     AckName { name: String, at: u128 },
     #[serde(rename = "status")]
     Status {
+        version: &'static str,
         #[serde(rename = "uptimeSeconds")]
         uptime_seconds: u64,
         #[serde(rename = "userCount")]

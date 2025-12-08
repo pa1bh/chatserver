@@ -180,11 +180,13 @@ const handleMessage = (event) => {
       appendMessage("system", `Je heet nu ${payload.name}.`, new Date(payload.at).toLocaleTimeString());
       break;
     case "status": {
-      const parts = [
-        `users: ${payload.userCount}`,
-        `uptime: ${payload.uptimeSeconds}s`,
-        `msgs: ${payload.messagesSent}`,
-      ];
+      const parts = [];
+      if (payload.version) {
+        parts.push(`v${payload.version}`);
+      }
+      parts.push(`users: ${payload.userCount}`);
+      parts.push(`uptime: ${payload.uptimeSeconds}s`);
+      parts.push(`msgs: ${payload.messagesSent}`);
       if (payload.messagesPerSecond !== undefined) {
         parts.push(`msg/s: ${payload.messagesPerSecond}`);
       }

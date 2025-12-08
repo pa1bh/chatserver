@@ -41,6 +41,7 @@ enum Incoming {
     AckName { name: String },
     #[serde(rename = "status")]
     Status {
+        version: String,
         #[serde(rename = "uptimeSeconds")]
         uptime_seconds: u64,
         #[serde(rename = "userCount")]
@@ -97,6 +98,7 @@ fn format_message(msg: &Incoming) -> String {
         Incoming::System { text } => format!("\x1b[33m* {}\x1b[0m", text),
         Incoming::AckName { name } => format!("\x1b[32m✓ Your name is now: {}\x1b[0m", name),
         Incoming::Status {
+            version,
             uptime_seconds,
             user_count,
             messages_sent,
@@ -104,8 +106,8 @@ fn format_message(msg: &Incoming) -> String {
             memory_mb,
         } => {
             format!(
-                "\x1b[36m[Status] users: {} | uptime: {}s | msgs: {} | msg/s: {} | mem: {:.2} MB\x1b[0m",
-                user_count, uptime_seconds, messages_sent, messages_per_second, memory_mb
+                "\x1b[36m[Status] v{} | users: {} | uptime: {}s | msgs: {} | msg/s: {} | mem: {:.2} MB\x1b[0m",
+                version, user_count, uptime_seconds, messages_sent, messages_per_second, memory_mb
             )
         }
         Incoming::ListUsers { users } => {
