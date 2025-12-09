@@ -1,36 +1,94 @@
-# Repository Guidelines
+# AGENTS.md
 
-## Project Structure & Module Organization
-- `index.ts`: Express entrypoint running on Bun; serves the homepage at `/`.
-- `package.json`, `bun.lockb`: Dependency and runtime metadata.
-- `tsconfig.json`: TypeScript settings for Bun with strict mode.
-- `README.md`: Quickstart for install/run. No tests or assets directories yet; add new modules under `src/` if the project grows.
+This file provides guidance to AI coding agents when working with code in this repository.
 
-## Build, Test, and Development Commands
-- `bun install`: Install dependencies.
-- `bun run index.ts` or `bun start`: Start the server once.
-- `bun --watch index.ts` or `bun run dev`: Run with auto-reload during development.
-- No test suite is defined yet; add one before introducing features that need coverage.
+## Build & Run Commands
 
-## Coding Style & Naming Conventions
-- Language: TypeScript targeting Bun; ES module syntax.
-- Indentation: 2 spaces; keep lines concise and prefer early returns.
-- Routes/controllers: name files by route intent (e.g., `src/routes/health.ts`).
-- Environment: read config via `process.env`; default to safe fallbacks (e.g., `PORT` with numeric default).
-- Keep inline HTML minimal and semantic; extract templates if they grow.
+```bash
+# Install frontend dependencies
+bun install
 
-## Testing Guidelines
-- Framework: not set up. Recommended: `vitest` or `bun:test`.
-- Test layout: mirror `src/` (e.g., `tests/health.test.ts`).
-- Naming: describe behavior (`should respond with 200 on /health`).
-- Coverage: add thresholds when tests exist; run via `bun test`.
+# HTTP server (frontend + status endpoint)
+bun run start:http          # or: bun run index.ts
 
-## Commit & Pull Request Guidelines
-- Commit messages: follow conventional commits seen in history (e.g., `feat: initial bun express homepage`).
-- Scope small, readable commits; avoid mixing refactors with features.
-- Pull requests: include summary, manual test notes (commands and results), and linked issues; attach screenshots for UI changes.
+# WebSocket server (Rust - recommended)
+cd rust-ws && cargo run --release
 
-## Security & Configuration Tips
-- Do not commit secrets; prefer `.env` (already gitignored). Document required vars in README or PR.
-- Validate and sanitize request input when adding new routes; return safe defaults on errors.
-- Pin APIs to explicit versions in `package.json`; keep `bun.lockb` in sync.
+# Development with auto-reload
+bun run dev:http            # frontend with auto-reload
+cd rust-ws && cargo run     # Rust backend (debug mode)
+
+# Bun WebSocket backend (deprecated, for testing only)
+bun run start:ws            # or: bun run ws-server.ts
+```
+
+## Environment Configuration
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `PORT` | 3000 | HTTP server port |
+| `HOST` | 0.0.0.0 | HTTP server bind address |
+| `WS_PORT` | 3001 | WebSocket server port |
+| `WS_HOST` | - | Override WebSocket hostname (for reverse proxy) |
+| `WS_URL` | - | Full WebSocket URL override |
+| `LOG_TARGET` | stdout | `stdout` or `file` |
+| `LOG_FILE` | - | Log file path when `LOG_TARGET=file` |
+| `RUST_LOG` | - | Rust logging level (`info`, `debug`) |
+
+CLI logging: `--log=stdout` or `--log=file:server.log`
+
+## Architecture
+
+The project is a chat server with two separate processes:
+
+1. **HTTP Server** (`index.ts`) - Express on Bun serving the chat frontend at `/` and status JSON at `/status`. Injects WebSocket URL dynamically based on request headers.
+
+2. **WebSocket Server** (`rust-ws/`) - Rust backend using Axum/Tokio. Handles real-time chat, client connections, broadcasts, user tracking. This is the recommended backend for production.
+
+3. **Bun WebSocket Backend** (`ws-server.ts`) - Deprecated TypeScript version. Same protocol but lower performance.
+
+### Native Clients
+
+- `rust-client/` - CLI chat client with command history
+- `rust-gui/` - GUI chat client using egui
+- `rust-wsmonitor/` - Health check CLI tool for scripts
+
+### WebSocket Protocol
+
+Inbound (client → server):
+- `{ type: "chat", text }` - Send message
+- `{ type: "setName", name }` - Change username
+- `{ type: "status" }` - Request server status
+- `{ type: "listUsers" }` - Request user list
+- `{ type: "ping", token? }` - Ping with optional token for validation
+
+Outbound (server → client):
+- `chat { from, text, at }` - Chat message
+- `system { text, at }` - Join/leave/rename events
+- `ackName { name, at }` - Name change confirmation
+- `status { uptimeSeconds, userCount, messagesSent, messagesPerSecond, memoryMb }`
+- `listUsers { users: [{ id, name, ip }] }`
+- `pong { token?, at }` - Response to ping
+- `error { message }`
+
+### Frontend Commands
+
+- `/name <username>` - Change username
+- `/status` - Get server status
+- `/users` - List connected users
+- `/ping [token]` - Measure roundtrip time
+
+## Code Style
+
+- TypeScript with strict mode, ES modules (frontend)
+- Rust with standard formatting (backend)
+- 2-space indentation (TS), 4-space (Rust)
+- Prefer early returns
+- Environment config via `process.env` / `std::env` with safe defaults
+- Conventional commits: `feat:`, `fix:`, `chore:`, etc.
+
+## Testing
+
+No test suite configured yet. For manual testing:
+- `rust-wsmonitor` for health checks
+- `rust-wsbench` for load testing

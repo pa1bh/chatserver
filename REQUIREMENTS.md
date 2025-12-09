@@ -1,74 +1,142 @@
-# Project Requirements 
+# Project Requirements
 
-## Doel en Scope
-Dit project is een chat server / client op basis van websockets.
+## Goal and Scope
+This project is a chat server/client based on WebSockets.
 
-Er moeten twee entryponis zijn (processen)
-- een webserver op de client code naar de browser te serveren
-- een websocket backend om de chats af te handelen
+There are two entrypoints (processes):
+- A web server to serve the client code to the browser
+- A WebSocket backend to handle the chat messages
 
-Beide mogen in een project zitten maar moeten afzonderlijk van elkaar gestart kunnen worden voor
-als we laster de twee verandwoordelijkheden over verschillende servers / containers gaan onderbrengen.
+Both may reside in the same project but must be startable independently, allowing the two responsibilities to be deployed on different servers/containers.
 
-## Doelgroep en Use Cases
-- Primaire gebruikers: Bezoekers van chat server moeten met elkaar kunnen chatten
-- Belangrijkste use cases / user stories (bulletlijst):
-* een bezoeker opent de site in zin browser en laad de (JS) frontend
-* hier kan de gebruiker een nick name instellen en direct alle live chat voorbij zien komen
-* Er is een chatwindow en onderin een plek waar de bezoeker een bericht kan invoeren / verzenden
-* met een slash (/) kunnen "systeem" commando's gegeven worden, zoals: naam veranderen, status opvragen (en later wellicht nog andere zaken)
+## Target Audience and Use Cases
+- Primary users: Visitors to the chat server who want to chat with each other
+- Main use cases / user stories:
+  * A visitor opens the site in their browser and loads the (JS) frontend
+  * The user can set a nickname and immediately see all live chat messages
+  * There is a chat window with a message input field at the bottom
+  * Slash commands (`/`) can be used for system commands
 
-## Functionele Eisen
-- Routes/endpoints en gedrag:
--- frontend: / (home, chatwindow), /status server status
-- Invoer/uitvoer validaties: Basis validatie
-- Edge cases en foutafhandeling: model voor gebruikers als er iets is misgegaan (bv verbinding met de backend) met de melding
-- De WebSocket backend is geïmplementeerd in Rust (Axum/Tokio) — zie `rust-ws/`
-- Er is ook een Bun/TypeScript versie beschikbaar voor testen (deprecated)
+## Functional Requirements
 
-## Niet-functionele Eisen
-- Performance (latency/throughput): voor nu geen eisen
-- Beschikbaarheid/uptime: voor nu geen eisen
-- Schaalbaarheid: websocket en webserver processen scheiden
-- Beveiliging (authN/Z, rate limiting, input sanitatie): In deze fase geen beveiliging of banning
-- Observability (logging/metrics/tracing): Het server process moet logging: 
-* nieuwe gebruiker
-* gebruiker X stuurt bericht
-* gebruiker X gaat weg
-- er moet een archument zijn om te bepalen waar er naartoe gelogd worden (stdout, file)
+### Routes/Endpoints
+- `/` - Homepage with chat frontend
+- `/status` - Server status JSON
 
+### Frontend Commands
+- `/name <username>` - Change username
+- `/status` - Request server status
+- `/users` - List connected users
+- `/ping [token]` - Measure roundtrip latency
+- `/ai <question>` - Ask AI a question (requires configuration)
 
-## API & Data
-- API contract (request/response modellen, statuscodes):
-Wat betrefd de communicatie tussen fronend en backend (via websocket)
+### WebSocket Protocol
 
-### client naar server
-* verander gebruikersnaam
-* stuur bericht
-* vraag status op
-* vraag lijst gebruikers op
+#### Client → Server
+- `{ type: "chat", text }` - Send message
+- `{ type: "setName", name }` - Change username
+- `{ type: "status" }` - Request server status
+- `{ type: "listUsers" }` - Request user list
+- `{ type: "ping", token? }` - Ping with optional token
+- `{ type: "ai", prompt }` - Ask AI a question
 
-### server naar client
-* bevestig verandering gebruikersnaam
-* berichten van andere gebruikers
-* antwoord status (server status)
-* antwoord lijst gebruikers
+#### Server → Client
+- `chat { from, text, at }` - Chat message
+- `system { text, at }` - Join/leave/rename events
+- `ackName { name, at }` - Name change confirmation
+- `status { uptimeSeconds, userCount, messagesSent, messagesPerSecond, memoryMb }`
+- `listUsers { users: [{ id, name, ip }] }`
+- `pong { token?, at }` - Response to ping
+- `ai { from, prompt, response, at }` - AI response broadcast
+- `error { message }` - Error message
 
-- Data modellering/opslag (indien van toepassing):
+### Backend Implementations
+- **Rust (recommended)**: `rust-ws/` - Axum/Tokio based, high performance
+- **Bun/TypeScript (deprecated)**: `ws-server.ts` - For testing only
 
-## Configuratie en Omgevingen
-- Omgevingsvariabelen:
-- Omgevingen (dev/stage/prod) en verschillen:
+### Native Clients
+- `rust-client/` - CLI chat client with command history
+- `rust-gui/` - GUI chat client using egui
+- `rust-wsmonitor/` - Health check CLI tool for scripts
+- `rust-wsbench/` - Load testing / benchmark tool
 
-## Kwaliteit & Testing
-- Teststrategie (unit/integration/e2e): voor nu geen
-- Coverage/doelstellingen: voor nu geen
-- Testdata en fixtures: voor nu geen
+### AI Integration
+- OpenRouter integration for AI-powered Q&A
+- Rate limiting per user
+- Responses broadcast to all connected users
 
-## Deploy & Operations
-- Deployproces en rollback-strategie: voor nu geen
-- Monitoring/alerts: voor nu geen
-- Backups en herstel: voor nu geen
+## Non-Functional Requirements
 
-## Open Vragen / Assumpties
-- let op dat de afspraken in AGENTS.md gehonoreerd worden
+### Performance
+- No specific requirements at this stage
+- Benchmark results available in README.md
+
+### Availability/Uptime
+- No specific requirements at this stage
+
+### Scalability
+- WebSocket and web server processes are separated
+- Supports containerized deployment (Docker)
+
+### Security
+- No authentication or banning in this phase
+- Rate limiting on AI requests only
+- Input validation on chat messages
+
+### Observability
+Logging must include:
+- New user connections
+- User X sends message
+- User X disconnects
+- AI requests and responses
+
+Logging destination configurable via:
+- `LOG_TARGET` environment variable (`stdout` or `file`)
+- `--log=stdout` or `--log=file:path` CLI argument
+- `RUST_LOG` for Rust backend log level
+
+## Configuration
+
+### Environment Variables
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `PORT` | 3000 | HTTP server port |
+| `HOST` | 0.0.0.0 | HTTP server bind address |
+| `WS_PORT` | 3001 | WebSocket server port |
+| `WS_HOST` | - | Override WebSocket hostname |
+| `WS_URL` | - | Full WebSocket URL override |
+| `LOG_TARGET` | stdout | `stdout` or `file` |
+| `LOG_FILE` | - | Log file path |
+| `RUST_LOG` | - | Rust log level (`info`, `debug`) |
+| `OPENROUTER_API_KEY` | - | OpenRouter API key for AI |
+| `AI_ENABLED` | false | Enable/disable AI feature |
+| `AI_MODEL` | openai/gpt-4o | AI model to use |
+| `AI_RATE_LIMIT` | 5 | Max AI requests per user per minute |
+
+## Quality & Testing
+
+### Test Strategy
+- No automated test suite configured yet
+- Manual testing via:
+  - `rust-wsmonitor` for health checks
+  - `rust-wsbench` for load testing
+  - `websocat` for protocol testing
+
+### Coverage Goals
+- None defined at this stage
+
+## Deployment & Operations
+
+### Deployment
+- Docker support for Rust backend (`rust-ws/Dockerfile`)
+- Multi-stage build (~15MB image with Alpine Linux)
+
+### Monitoring/Alerts
+- Health checks via `rust-wsmonitor`
+- `/status` endpoint for HTTP server status
+
+### Backups and Recovery
+- No persistent data storage; no backup requirements
+
+## Open Questions / Assumptions
+- Ensure agreements in AGENTS.md and CLAUDE.md are honored
