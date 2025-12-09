@@ -59,6 +59,8 @@ enum Incoming {
     Chat { from: String, text: String },
     #[serde(rename = "ackName")]
     AckName { name: String },
+    #[serde(rename = "error")]
+    Error { message: String },
     #[serde(other)]
     Other,
 }
@@ -105,6 +107,7 @@ struct Stats {
     messages_sent: AtomicU64,
     messages_received: AtomicU64,
     errors: AtomicU64,
+    rate_limited: AtomicU64,
     latencies: Mutex<Vec<u64>>,
 }
 
@@ -115,6 +118,7 @@ impl Stats {
             messages_sent: AtomicU64::new(0),
             messages_received: AtomicU64::new(0),
             errors: AtomicU64::new(0),
+            rate_limited: AtomicU64::new(0),
             latencies: Mutex::new(Vec::new()),
         }
     }
@@ -193,6 +197,13 @@ async fn run_client(
                                             stats_read.latencies.lock().await.push(latency);
                                         }
                                     }
+                                }
+                            }
+                            Incoming::Error { message } => {
+                                if message.contains("Rate limit") {
+                                    stats_read.rate_limited.fetch_add(1, Ordering::Relaxed);
+                                } else {
+                                    stats_read.errors.fetch_add(1, Ordering::Relaxed);
                                 }
                             }
                             Incoming::Other => {}
@@ -321,11 +332,19 @@ Duration:   {}s
             let connected = stats_progress.connected.load(Ordering::Relaxed);
             let sent = stats_progress.messages_sent.load(Ordering::Relaxed);
             let recv = stats_progress.messages_received.load(Ordering::Relaxed);
+            let rate_limited = stats_progress.rate_limited.load(Ordering::Relaxed);
 
-            println!(
-                "[{}s/{}s] Connected: {}/{} | Sent: {} | Recv: {}",
-                elapsed, duration, connected, total_clients, sent, recv
-            );
+            if rate_limited > 0 {
+                println!(
+                    "[{}s/{}s] Connected: {}/{} | Sent: {} | Recv: {} | Rate limited: {}",
+                    elapsed, duration, connected, total_clients, sent, recv, rate_limited
+                );
+            } else {
+                println!(
+                    "[{}s/{}s] Connected: {}/{} | Sent: {} | Recv: {}",
+                    elapsed, duration, connected, total_clients, sent, recv
+                );
+            }
         }
     });
 
@@ -340,6 +359,7 @@ Duration:   {}s
     let total_sent = stats.messages_sent.load(Ordering::Relaxed);
     let total_recv = stats.messages_received.load(Ordering::Relaxed);
     let total_errors = stats.errors.load(Ordering::Relaxed);
+    let total_rate_limited = stats.rate_limited.load(Ordering::Relaxed);
 
     let mut latencies = stats.latencies.lock().await;
     latencies.sort_unstable();
@@ -365,6 +385,7 @@ Clients connected:  {}/{}
 Messages sent:      {}
 Messages received:  {}
 Errors:             {}
+Rate limited:       {}
 Throughput:         {:.1} msg/s
 
 Latency (ms):
@@ -379,6 +400,7 @@ Latency (ms):
         total_sent,
         total_recv,
         total_errors,
+        total_rate_limited,
         throughput,
         avg_latency,
         p50,
