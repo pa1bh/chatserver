@@ -177,6 +177,24 @@ The server supports AI-powered Q&A via OpenRouter. Questions asked with `/ai` ar
 
 The question and AI response are broadcast to all connected users.
 
+## Rate Limiting
+
+The server supports rate limiting for chat messages to prevent spam and abuse.
+
+### Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `RATE_LIMIT_ENABLED` | `false` | Enable/disable rate limiting |
+| `RATE_LIMIT_MSG_PER_MIN` | `60` | Max chat messages per user per minute |
+
+### How it works
+
+- Uses a sliding window algorithm (1 minute window)
+- Each WebSocket connection is tracked independently
+- When rate limited, users receive an error message with the wait time
+- Only applies to chat messages, not commands like `/status` or `/users`
+
 ## Bun/TypeScript WebSocket Backend (deprecated)
 
 A Bun/TypeScript version of the WebSocket backend is also available for testing.

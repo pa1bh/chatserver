@@ -119,17 +119,27 @@ async fn process_message(state: &AppState, id: Uuid, text: String) -> Result<(),
         Incoming::Chat { text } => {
             let trimmed = text.trim();
             if trimmed.is_empty() {
-                return Err("Bericht mag niet leeg zijn.".into());
+                return Err("Message cannot be empty.".into());
             }
             if trimmed.len() > 500 {
-                return Err("Bericht is te lang (max 500 tekens).".into());
+                return Err("Message is too long (max 500 characters).".into());
             }
 
+            // Check rate limit
             let (name, ip) = {
                 let entry = state
                     .clients
                     .get(&id)
-                    .ok_or_else(|| "Onbekende gebruiker".to_string())?;
+                    .ok_or_else(|| "Unknown user".to_string())?;
+
+                // Check rate limit before allowing the message
+                if let Err(wait_secs) = entry.value().check_rate_limit(&state.rate_limit) {
+                    return Err(format!(
+                        "Rate limit exceeded. Please wait {} seconds.",
+                        wait_secs
+                    ));
+                }
+
                 (entry.value().name.clone(), entry.value().ip.clone())
             };
 

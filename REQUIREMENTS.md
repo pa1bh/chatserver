@@ -112,6 +112,8 @@ Logging destination configurable via:
 | `AI_ENABLED` | false | Enable/disable AI feature |
 | `AI_MODEL` | openai/gpt-4o | AI model to use |
 | `AI_RATE_LIMIT` | 5 | Max AI requests per user per minute |
+| `RATE_LIMIT_ENABLED` | false | Enable chat rate limiting |
+| `RATE_LIMIT_MSG_PER_MIN` | 60 | Max chat messages per user per minute |
 
 ## Quality & Testing
 

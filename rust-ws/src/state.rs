@@ -1,5 +1,6 @@
 use std::{
-    sync::{atomic::AtomicU64, Arc},
+    collections::VecDeque,
+    sync::{atomic::AtomicU64, Arc, Mutex},
     time::{Instant, SystemTime},
 };
 
@@ -7,10 +8,41 @@ use axum::extract::ws::Message;
 use dashmap::DashMap;
 use sysinfo::{ProcessesToUpdate, System};
 use tokio::sync::{mpsc, RwLock};
+use tracing::info;
 use uuid::Uuid;
 
 use crate::ai::AiClient;
 use crate::protocol::{Outgoing, UserInfo};
+
+#[derive(Clone)]
+pub struct RateLimitConfig {
+    pub enabled: bool,
+    pub messages_per_minute: u32,
+}
+
+impl RateLimitConfig {
+    pub fn from_env() -> Self {
+        let enabled = std::env::var("RATE_LIMIT_ENABLED")
+            .map(|v| v.eq_ignore_ascii_case("true") || v == "1")
+            .unwrap_or(false);
+        let messages_per_minute = std::env::var("RATE_LIMIT_MSG_PER_MIN")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(60);
+
+        if enabled {
+            info!(
+                messages_per_minute,
+                "Rate limiting enabled"
+            );
+        }
+
+        Self {
+            enabled,
+            messages_per_minute,
+        }
+    }
+}
 
 pub type Clients = Arc<DashMap<Uuid, Client>>;
 
@@ -21,16 +53,18 @@ pub struct AppState {
     pub messages_sent: Arc<AtomicU64>,
     pub system_info: Arc<RwLock<System>>,
     pub ai: Arc<AiClient>,
+    pub rate_limit: RateLimitConfig,
 }
 
 impl AppState {
-    pub fn new(ai_client: AiClient) -> Self {
+    pub fn new(ai_client: AiClient, rate_limit: RateLimitConfig) -> Self {
         Self {
             clients: Arc::new(DashMap::new()),
             started_at: Instant::now(),
             messages_sent: Arc::new(AtomicU64::new(0)),
             system_info: Arc::new(RwLock::new(System::new())),
             ai: Arc::new(ai_client),
+            rate_limit,
         }
     }
 
@@ -80,6 +114,8 @@ pub struct Client {
     pub tx: mpsc::UnboundedSender<Message>,
     #[allow(dead_code)]
     pub connected_at: SystemTime,
+    /// Timestamps of recent messages for rate limiting (sliding window)
+    pub message_timestamps: Arc<Mutex<VecDeque<Instant>>>,
 }
 
 impl Client {
@@ -89,7 +125,41 @@ impl Client {
             ip,
             tx,
             connected_at: SystemTime::now(),
+            message_timestamps: Arc::new(Mutex::new(VecDeque::new())),
         }
+    }
+
+    /// Check if this client is rate limited. Returns Ok(()) if allowed, Err with seconds until next allowed message if rate limited.
+    pub fn check_rate_limit(&self, config: &RateLimitConfig) -> Result<(), u64> {
+        if !config.enabled {
+            return Ok(());
+        }
+
+        let mut timestamps = self.message_timestamps.lock().unwrap();
+        let now = Instant::now();
+        let window = std::time::Duration::from_secs(60);
+
+        // Remove timestamps older than 1 minute
+        while let Some(front) = timestamps.front() {
+            if now.duration_since(*front) > window {
+                timestamps.pop_front();
+            } else {
+                break;
+            }
+        }
+
+        if timestamps.len() >= config.messages_per_minute as usize {
+            // Calculate how long until the oldest message expires
+            if let Some(oldest) = timestamps.front() {
+                let elapsed = now.duration_since(*oldest);
+                let wait_secs = (window.as_secs()).saturating_sub(elapsed.as_secs());
+                return Err(wait_secs.max(1));
+            }
+        }
+
+        // Record this message
+        timestamps.push_back(now);
+        Ok(())
     }
 
     pub fn send(&self, payload: &Outgoing) -> bool {

@@ -34,6 +34,8 @@ bun run start:ws            # or: bun run ws-server.ts
 | `LOG_TARGET` | stdout | `stdout` or `file` |
 | `LOG_FILE` | - | Log file path when `LOG_TARGET=file` |
 | `RUST_LOG` | - | Rust logging level (`info`, `debug`) |
+| `RATE_LIMIT_ENABLED` | false | Enable chat rate limiting |
+| `RATE_LIMIT_MSG_PER_MIN` | 60 | Max chat messages per user per minute |
 
 CLI logging: `--log=stdout` or `--log=file:server.log`
 

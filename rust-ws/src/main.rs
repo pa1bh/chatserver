@@ -12,7 +12,7 @@ use tracing::info;
 
 use ai::{AiClient, AiConfig};
 use handlers::ws_handler;
-use state::AppState;
+use state::{AppState, RateLimitConfig};
 
 #[tokio::main]
 async fn main() {
@@ -38,7 +38,10 @@ async fn main() {
     let ai_config = AiConfig::from_env();
     let ai_client = AiClient::new(ai_config);
 
-    let state = AppState::new(ai_client);
+    // Initialize rate limiting
+    let rate_limit = RateLimitConfig::from_env();
+
+    let state = AppState::new(ai_client, rate_limit);
 
     let app = Router::new().route("/", get(ws_handler)).with_state(state);
 
