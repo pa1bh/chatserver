@@ -5,6 +5,7 @@ use axum::{
         ws::{Message, WebSocket, WebSocketUpgrade},
         ConnectInfo, State,
     },
+    http::HeaderMap,
     response::IntoResponse,
 };
 use futures::{stream::StreamExt, SinkExt};
@@ -20,12 +21,27 @@ use crate::{
 pub async fn ws_handler(
     ws: WebSocketUpgrade,
     State(state): State<AppState>,
+    headers: HeaderMap,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
 ) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| handle_socket(state, socket, addr))
+    // Extract real IP from X-Forwarded-For or X-Real-IP header (set by reverse proxy)
+    let client_ip = headers
+        .get("x-forwarded-for")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.split(',').next()) // Take first IP if multiple
+        .map(|s| s.trim().to_string())
+        .or_else(|| {
+            headers
+                .get("x-real-ip")
+                .and_then(|v| v.to_str().ok())
+                .map(|s| s.trim().to_string())
+        })
+        .unwrap_or_else(|| addr.ip().to_string());
+
+    ws.on_upgrade(move |socket| handle_socket(state, socket, client_ip))
 }
 
-async fn handle_socket(state: AppState, socket: WebSocket, addr: SocketAddr) {
+async fn handle_socket(state: AppState, socket: WebSocket, client_ip: String) {
     let id = Uuid::new_v4();
     let name = format!("guest-{}", &id.to_string()[..6]);
     let (mut sender, mut receiver) = socket.split();
@@ -42,12 +58,12 @@ async fn handle_socket(state: AppState, socket: WebSocket, addr: SocketAddr) {
         debug!("WS send loop finished");
     });
 
-    let client = Client::new(name.clone(), addr.ip().to_string(), tx);
+    let client = Client::new(name.clone(), client_ip.clone(), tx);
 
     // Register client
     state.clients.insert(id, client.clone());
 
-    info!(id = %id, name = %name, ip = %addr.ip(), "Client connected");
+    info!(id = %id, name = %name, ip = %client_ip, "Client connected");
 
     // Send welcome messages
     client.send(&Outgoing::AckName {
@@ -108,7 +124,7 @@ async fn handle_socket(state: AppState, socket: WebSocket, addr: SocketAddr) {
     );
 
     send_task.abort();
-    info!(id = %id, name = %final_name, ip = %addr.ip(), "Client disconnected");
+    info!(id = %id, name = %final_name, ip = %client_ip, "Client disconnected");
 }
 
 async fn process_message(state: &AppState, id: Uuid, text: String) -> Result<(), String> {
