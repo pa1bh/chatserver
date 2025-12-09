@@ -31,10 +31,7 @@ impl RateLimitConfig {
             .unwrap_or(60);
 
         if enabled {
-            info!(
-                messages_per_minute,
-                "Rate limiting enabled"
-            );
+            info!(messages_per_minute, "Rate limiting enabled");
         }
 
         Self {
