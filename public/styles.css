@@ -176,6 +176,57 @@ button:active {
   text-align: center;
 }
 
+/* User list styling */
+.msg.userlist {
+  max-width: 100%;
+}
+
+.userlist-header {
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #475569;
+}
+
+.userlist-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-family: "SF Mono", Monaco, Consolas, monospace;
+}
+
+.userlist-table tr {
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.userlist-table tr:last-child {
+  border-bottom: none;
+}
+
+.userlist-table td {
+  padding: 6px 8px;
+  vertical-align: middle;
+}
+
+.userlist-id {
+  color: #94a3b8;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.userlist-name {
+  font-weight: 500;
+  color: #0f172a;
+}
+
+.userlist-name.userlist-me {
+  color: #4f46e5;
+}
+
+.userlist-ip {
+  color: #64748b;
+  text-align: right;
+}
+
 .msg.ai {
   background: #faf5ff;
   border-color: #d8b4fe;

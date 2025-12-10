@@ -127,6 +127,54 @@ const appendMessage = (type, text, meta = "", isMine = false, useMarkdown = fals
   scrollToBottom();
 };
 
+const appendUserList = (users) => {
+  const item = document.createElement("div");
+  item.className = "msg system userlist";
+  const metaEl = document.createElement("div");
+  metaEl.className = "meta";
+  metaEl.textContent = "server";
+  const body = document.createElement("div");
+  body.className = "body";
+
+  const header = document.createElement("div");
+  header.className = "userlist-header";
+  header.textContent = `Gebruikers (${users.length})`;
+  body.appendChild(header);
+
+  const table = document.createElement("table");
+  table.className = "userlist-table";
+
+  users.forEach((u) => {
+    const row = document.createElement("tr");
+
+    const idCell = document.createElement("td");
+    idCell.className = "userlist-id";
+    idCell.textContent = u.id;
+    row.appendChild(idCell);
+
+    const nameCell = document.createElement("td");
+    nameCell.className = "userlist-name";
+    nameCell.textContent = u.name;
+    if (u.name === currentName) nameCell.classList.add("userlist-me");
+    row.appendChild(nameCell);
+
+    if (u.ip) {
+      const ipCell = document.createElement("td");
+      ipCell.className = "userlist-ip";
+      ipCell.textContent = u.ip;
+      row.appendChild(ipCell);
+    }
+
+    table.appendChild(row);
+  });
+
+  body.appendChild(table);
+  item.appendChild(metaEl);
+  item.appendChild(body);
+  messagesEl.appendChild(item);
+  scrollToBottom();
+};
+
 const sendPayload = (payload) => {
   if (!socket || socket.readyState !== WebSocket.OPEN) {
     appendMessage("error", "Niet verbonden met server.", "client");
@@ -212,13 +260,7 @@ const handleMessage = (event) => {
       if (!payload.users?.length) {
         appendMessage("system", "Geen gebruikers online.", "server");
       } else {
-        const lines = payload.users.map((u) => {
-          const info = [u.name];
-          if (u.ip) info.push(`ip: ${u.ip}`);
-          info.push(`id: ${u.id.slice(0, 8)}...`);
-          return info.join(" | ");
-        });
-        appendMessage("system", `Gebruikers (${payload.users.length}):\n${lines.join("\n")}`, "server");
+        appendUserList(payload.users);
       }
       break;
     }
