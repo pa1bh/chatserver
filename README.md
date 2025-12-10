@@ -96,6 +96,16 @@ The Rust backend validates all input:
 | Chat rate limit | configurable (default 60/min) |
 | AI rate limit | configurable (default 5/min) |
 
+### Resource Protection (backend)
+
+The server protects against resource exhaustion:
+
+| Protection | Description |
+|------------|-------------|
+| Bounded message queues | Each client has a 256-message buffer; slow clients drop messages instead of causing memory growth |
+| AI request timeout | API calls timeout after configurable duration (default 30s) to prevent hanging workers |
+| AI response limits | Responses capped at configurable max tokens (default 1024) to control costs and memory |
+
 ### XSS Prevention (frontend)
 
 The web client handles sanitization:
@@ -196,6 +206,8 @@ The server supports AI-powered Q&A via OpenRouter. Questions asked with `/ai` ar
 | `AI_ENABLED` | `false` | Enable/disable AI feature |
 | `AI_MODEL` | `openai/gpt-4o` | Model to use (see [OpenRouter models](https://openrouter.ai/models)) |
 | `AI_RATE_LIMIT` | `5` | Max requests per user per minute |
+| `AI_TIMEOUT_SECS` | `30` | Timeout for API requests (prevents hanging) |
+| `AI_MAX_TOKENS` | `1024` | Max tokens in AI response (controls costs) |
 
 ### Usage
 

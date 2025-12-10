@@ -36,6 +36,12 @@ bun run start:ws            # or: bun run ws-server.ts
 | `RUST_LOG` | - | Rust logging level (`info`, `debug`) |
 | `RATE_LIMIT_ENABLED` | false | Enable chat rate limiting |
 | `RATE_LIMIT_MSG_PER_MIN` | 60 | Max chat messages per user per minute |
+| `AI_ENABLED` | false | Enable AI integration |
+| `OPENROUTER_API_KEY` | - | OpenRouter API key (required if AI enabled) |
+| `AI_MODEL` | openai/gpt-4o | AI model to use |
+| `AI_RATE_LIMIT` | 5 | Max AI requests per user per minute |
+| `AI_TIMEOUT_SECS` | 30 | Timeout for AI API requests |
+| `AI_MAX_TOKENS` | 1024 | Max tokens in AI response |
 
 CLI logging: `--log=stdout` or `--log=file:server.log`
 

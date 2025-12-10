@@ -41,11 +41,15 @@ pub async fn ws_handler(
     ws.on_upgrade(move |socket| handle_socket(state, socket, client_ip))
 }
 
+/// Buffer size for outbound messages per client.
+/// If a client can't keep up, messages will be dropped to prevent memory exhaustion.
+const CLIENT_CHANNEL_BUFFER: usize = 256;
+
 async fn handle_socket(state: AppState, socket: WebSocket, client_ip: String) {
     let id = Uuid::new_v4();
     let name = format!("guest-{}", &id.to_string()[..6]);
     let (mut sender, mut receiver) = socket.split();
-    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Message>();
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<Message>(CLIENT_CHANNEL_BUFFER);
 
     // Send loop
     let send_task = tokio::spawn(async move {
@@ -99,7 +103,7 @@ async fn handle_socket(state: AppState, socket: WebSocket, client_ip: String) {
             }
             Message::Close(_) => break,
             Message::Ping(p) => {
-                let _ = client.tx.send(Message::Pong(p));
+                let _ = client.tx.try_send(Message::Pong(p));
             }
             _ => {}
         }
@@ -293,8 +297,9 @@ pub fn broadcast(state: &AppState, payload: &Outgoing, except: Option<Uuid>) {
         if except.is_some_and(|ex| ex == *entry.key()) {
             continue;
         }
-        if let Err(err) = entry.value().tx.send(Message::Text(text.clone().into())) {
-            error!(id = %entry.key(), ?err, "Send to client failed");
+        // Use try_send to avoid blocking on slow clients
+        if let Err(err) = entry.value().tx.try_send(Message::Text(text.clone().into())) {
+            error!(id = %entry.key(), ?err, "Send to client failed (slow client or disconnected)");
         }
     }
 }

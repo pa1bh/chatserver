@@ -108,7 +108,7 @@ impl AppState {
 pub struct Client {
     pub name: String,
     pub ip: String,
-    pub tx: mpsc::UnboundedSender<Message>,
+    pub tx: mpsc::Sender<Message>,
     #[allow(dead_code)]
     pub connected_at: SystemTime,
     /// Timestamps of recent messages for rate limiting (sliding window)
@@ -116,7 +116,7 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn new(name: String, ip: String, tx: mpsc::UnboundedSender<Message>) -> Self {
+    pub fn new(name: String, ip: String, tx: mpsc::Sender<Message>) -> Self {
         Self {
             name,
             ip,
@@ -159,9 +159,11 @@ impl Client {
         Ok(())
     }
 
+    /// Send a message to this client. Uses try_send to avoid blocking.
+    /// Returns false if the client's buffer is full (slow client) or channel closed.
     pub fn send(&self, payload: &Outgoing) -> bool {
         if let Ok(text) = serde_json::to_string(payload) {
-            self.tx.send(Message::Text(text.into())).is_ok()
+            self.tx.try_send(Message::Text(text.into())).is_ok()
         } else {
             false
         }
