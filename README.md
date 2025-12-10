@@ -81,6 +81,17 @@ cd rust-ws && cargo run       # Rust backend
 ¹ Rust backend only, requires AI configuration
 ² Rust backend only: `messagesPerSecond`, `memoryMb`, and `ip` fields
 
+## limits and checks
+
+```
+| Check               | Locatie         | Limiet          |
+|---------------------|-----------------|-----------------|
+| Chat message length | handlers.rs:140 | max 500 chars   |
+| Username length     | handlers.rs:176 | 2-32 chars      |
+| AI prompt length    | ai.rs:165       | max 1000 chars  |
+| Chat rate limit     | handlers.rs:152 | configureerbaar |
+| AI rate limit       | ai.rs:137       | configureerbaar |
+```
 ## Frontend Commands
 - `/name new_name` — change username.
 - `/status` — request server status.

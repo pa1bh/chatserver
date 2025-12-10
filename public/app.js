@@ -37,6 +37,13 @@ const getInitials = (name) => {
   return name.slice(0, 2).toUpperCase();
 };
 
+const formatUptime = (seconds) => {
+  if (seconds < 60) return `${seconds} sec`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} min`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)} uur`;
+  return `${Math.floor(seconds / 86400)} dagen`;
+};
+
 const setStatus = (text, tone = "info") => {
   connectionStatus.textContent = text;
   connectionStatus.style.background = tone === "error" ? "#fff1f2" : tone === "warn" ? "#fef9c3" : "#eef2ff";
@@ -190,7 +197,7 @@ const handleMessage = (event) => {
         parts.push(`v${payload.version}`);
       }
       parts.push(`users: ${payload.userCount}`);
-      parts.push(`uptime: ${payload.uptimeSeconds}s`);
+      parts.push(`uptime: ${formatUptime(payload.uptimeSeconds)}`);
       parts.push(`msgs: ${payload.messagesSent}`);
       if (payload.messagesPerSecond !== undefined) {
         parts.push(`msg/s: ${payload.messagesPerSecond}`);
