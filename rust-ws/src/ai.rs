@@ -18,9 +18,9 @@ pub struct AiConfig {
     pub enabled: bool,
     pub api_key: String,
     pub model: String,
-    pub rate_limit: u32,    // requests per minute per user
-    pub timeout_secs: u64,  // timeout for API requests
-    pub max_tokens: u32,    // max tokens in AI response
+    pub rate_limit: u32,   // requests per minute per user
+    pub timeout_secs: u64, // timeout for API requests
+    pub max_tokens: u32,   // max tokens in AI response
 }
 
 impl AiConfig {

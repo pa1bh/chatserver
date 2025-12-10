@@ -298,7 +298,11 @@ pub fn broadcast(state: &AppState, payload: &Outgoing, except: Option<Uuid>) {
             continue;
         }
         // Use try_send to avoid blocking on slow clients
-        if let Err(err) = entry.value().tx.try_send(Message::Text(text.clone().into())) {
+        if let Err(err) = entry
+            .value()
+            .tx
+            .try_send(Message::Text(text.clone().into()))
+        {
             error!(id = %entry.key(), ?err, "Send to client failed (slow client or disconnected)");
         }
     }
