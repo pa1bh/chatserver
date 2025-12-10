@@ -146,6 +146,10 @@ impl AiClient {
         self.config.enabled && !self.config.api_key.is_empty()
     }
 
+    pub fn model(&self) -> &str {
+        &self.config.model
+    }
+
     fn check_rate_limit(&self, user_id: Uuid) -> Result<(), String> {
         let now = Instant::now();
         let window = Duration::from_secs(60);

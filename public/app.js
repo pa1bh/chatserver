@@ -175,6 +175,79 @@ const appendUserList = (users) => {
   scrollToBottom();
 };
 
+const appendStatus = (payload) => {
+  const item = document.createElement("div");
+  item.className = "msg system status-panel";
+  const metaEl = document.createElement("div");
+  metaEl.className = "meta";
+  metaEl.textContent = "server";
+  const body = document.createElement("div");
+  body.className = "body";
+
+  const header = document.createElement("div");
+  header.className = "status-header";
+  header.textContent = `Server Status`;
+  if (payload.version) {
+    const versionBadge = document.createElement("span");
+    versionBadge.className = "status-version";
+    versionBadge.textContent = `v${payload.version}`;
+    header.appendChild(versionBadge);
+  }
+  body.appendChild(header);
+
+  const table = document.createElement("table");
+  table.className = "status-table";
+
+  const addRow = (label, value, className = "") => {
+    const row = document.createElement("tr");
+    const labelCell = document.createElement("td");
+    labelCell.className = "status-label";
+    labelCell.textContent = label;
+    const valueCell = document.createElement("td");
+    valueCell.className = `status-value ${className}`;
+    valueCell.textContent = value;
+    row.appendChild(labelCell);
+    row.appendChild(valueCell);
+    table.appendChild(row);
+  };
+
+  // System info
+  if (payload.os) {
+    addRow("Platform", `${payload.os}${payload.cpuCores ? ` (${payload.cpuCores} cores)` : ""}`);
+  }
+  if (payload.rustVersion) {
+    addRow("Rust", payload.rustVersion);
+  }
+
+  // Runtime stats
+  addRow("Uptime", formatUptime(payload.uptimeSeconds));
+  addRow("Users", `${payload.userCount}${payload.peakUsers ? ` (peak: ${payload.peakUsers})` : ""}`);
+  if (payload.connectionsTotal !== undefined) {
+    addRow("Connections", payload.connectionsTotal.toLocaleString());
+  }
+  addRow("Messages", payload.messagesSent.toLocaleString());
+  if (payload.messagesPerSecond !== undefined) {
+    addRow("Throughput", `${payload.messagesPerSecond} msg/s`);
+  }
+  if (payload.memoryMb !== undefined) {
+    addRow("Memory", `${payload.memoryMb} MB`);
+  }
+
+  // AI status
+  if (payload.aiEnabled !== undefined) {
+    const aiStatus = payload.aiEnabled
+      ? (payload.aiModel || "enabled")
+      : "disabled";
+    addRow("AI", aiStatus, payload.aiEnabled ? "status-ai-on" : "status-ai-off");
+  }
+
+  body.appendChild(table);
+  item.appendChild(metaEl);
+  item.appendChild(body);
+  messagesEl.appendChild(item);
+  scrollToBottom();
+};
+
 const sendPayload = (payload) => {
   if (!socket || socket.readyState !== WebSocket.OPEN) {
     appendMessage("error", "Niet verbonden met server.", "client");
@@ -240,20 +313,7 @@ const handleMessage = (event) => {
       appendMessage("system", `Je heet nu ${payload.name}.`, new Date(payload.at).toLocaleTimeString());
       break;
     case "status": {
-      const parts = [];
-      if (payload.version) {
-        parts.push(`v${payload.version}`);
-      }
-      parts.push(`users: ${payload.userCount}`);
-      parts.push(`uptime: ${formatUptime(payload.uptimeSeconds)}`);
-      parts.push(`msgs: ${payload.messagesSent}`);
-      if (payload.messagesPerSecond !== undefined) {
-        parts.push(`msg/s: ${payload.messagesPerSecond}`);
-      }
-      if (payload.memoryMb !== undefined) {
-        parts.push(`mem: ${payload.memoryMb} MB`);
-      }
-      appendMessage("system", `Status: ${parts.join(" | ")}`, "server");
+      appendStatus(payload);
       break;
     }
     case "listUsers": {

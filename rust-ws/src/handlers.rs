@@ -64,8 +64,9 @@ async fn handle_socket(state: AppState, socket: WebSocket, client_ip: String) {
 
     let client = Client::new(name.clone(), client_ip.clone(), tx);
 
-    // Register client
+    // Register client and update stats
     state.clients.insert(id, client.clone());
+    state.increment_connections();
 
     info!(id = %id, name = %name, ip = %client_ip, "Client connected");
 
@@ -223,15 +224,29 @@ async fn process_message(state: &AppState, id: Uuid, text: String) -> Result<(),
                 0.0
             };
             let memory_mb = state.memory_mb().await;
+            let cpu_cores = std::thread::available_parallelism()
+                .map(|p| p.get())
+                .unwrap_or(1);
 
             if let Some(entry) = state.clients.get(&id) {
                 entry.value().send(&Outgoing::Status {
                     version: env!("CARGO_PKG_VERSION"),
+                    rust_version: env!("RUSTC_VERSION"),
+                    os: std::env::consts::OS,
+                    cpu_cores,
                     uptime_seconds: uptime_secs,
                     user_count: count,
+                    peak_users: state.peak_users() as usize,
+                    connections_total: state.connections_total(),
                     messages_sent: messages,
                     messages_per_second: (msgs_per_sec * 100.0).round() / 100.0,
                     memory_mb: (memory_mb * 100.0).round() / 100.0,
+                    ai_enabled: state.ai.is_enabled(),
+                    ai_model: if state.ai.is_enabled() {
+                        Some(state.ai.model().to_string())
+                    } else {
+                        None
+                    },
                 });
             }
         }

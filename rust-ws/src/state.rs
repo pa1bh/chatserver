@@ -48,6 +48,8 @@ pub struct AppState {
     pub clients: Clients,
     pub started_at: Instant,
     pub messages_sent: Arc<AtomicU64>,
+    pub connections_total: Arc<AtomicU64>,
+    pub peak_users: Arc<AtomicU64>,
     pub system_info: Arc<RwLock<System>>,
     pub ai: Arc<AiClient>,
     pub rate_limit: RateLimitConfig,
@@ -59,6 +61,8 @@ impl AppState {
             clients: Arc::new(DashMap::new()),
             started_at: Instant::now(),
             messages_sent: Arc::new(AtomicU64::new(0)),
+            connections_total: Arc::new(AtomicU64::new(0)),
+            peak_users: Arc::new(AtomicU64::new(0)),
             system_info: Arc::new(RwLock::new(System::new())),
             ai: Arc::new(ai_client),
             rate_limit,
@@ -81,6 +85,25 @@ impl AppState {
     pub fn increment_messages(&self) {
         self.messages_sent
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    pub fn increment_connections(&self) {
+        self.connections_total
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
+        // Update peak users if current count is higher
+        let current = self.clients.len() as u64;
+        self.peak_users
+            .fetch_max(current, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    pub fn connections_total(&self) -> u64 {
+        self.connections_total
+            .load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    pub fn peak_users(&self) -> u64 {
+        self.peak_users.load(std::sync::atomic::Ordering::Relaxed)
     }
 
     pub async fn memory_mb(&self) -> f64 {

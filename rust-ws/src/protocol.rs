@@ -33,16 +33,29 @@ pub enum Outgoing {
     #[serde(rename = "status")]
     Status {
         version: &'static str,
+        #[serde(rename = "rustVersion")]
+        rust_version: &'static str,
+        os: &'static str,
+        #[serde(rename = "cpuCores")]
+        cpu_cores: usize,
         #[serde(rename = "uptimeSeconds")]
         uptime_seconds: u64,
         #[serde(rename = "userCount")]
         user_count: usize,
+        #[serde(rename = "peakUsers")]
+        peak_users: usize,
+        #[serde(rename = "connectionsTotal")]
+        connections_total: u64,
         #[serde(rename = "messagesSent")]
         messages_sent: u64,
         #[serde(rename = "messagesPerSecond")]
         messages_per_second: f64,
         #[serde(rename = "memoryMb")]
         memory_mb: f64,
+        #[serde(rename = "aiEnabled")]
+        ai_enabled: bool,
+        #[serde(rename = "aiModel", skip_serializing_if = "Option::is_none")]
+        ai_model: Option<String>,
     },
     #[serde(rename = "listUsers")]
     ListUsers { users: Vec<UserInfo> },

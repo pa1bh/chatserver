@@ -54,16 +54,29 @@ enum Incoming {
     #[serde(rename = "status")]
     Status {
         version: String,
+        #[serde(rename = "rustVersion")]
+        rust_version: Option<String>,
+        os: Option<String>,
+        #[serde(rename = "cpuCores")]
+        cpu_cores: Option<usize>,
         #[serde(rename = "uptimeSeconds")]
         uptime_seconds: u64,
         #[serde(rename = "userCount")]
         user_count: usize,
+        #[serde(rename = "peakUsers")]
+        peak_users: Option<usize>,
+        #[serde(rename = "connectionsTotal")]
+        connections_total: Option<u64>,
         #[serde(rename = "messagesSent")]
         messages_sent: u64,
         #[serde(rename = "messagesPerSecond")]
         messages_per_second: f64,
         #[serde(rename = "memoryMb")]
         memory_mb: f64,
+        #[serde(rename = "aiEnabled")]
+        ai_enabled: Option<bool>,
+        #[serde(rename = "aiModel")]
+        ai_model: Option<String>,
     },
     #[serde(rename = "listUsers")]
     ListUsers { users: Vec<UserInfo> },
@@ -111,16 +124,84 @@ fn format_message(msg: &Incoming) -> String {
         Incoming::AckName { name } => format!("\x1b[32m✓ Your name is now: {}\x1b[0m", name),
         Incoming::Status {
             version,
+            rust_version,
+            os,
+            cpu_cores,
             uptime_seconds,
             user_count,
+            peak_users,
+            connections_total,
             messages_sent,
             messages_per_second,
             memory_mb,
+            ai_enabled,
+            ai_model,
         } => {
-            format!(
-                "\x1b[36m[Status] v{} | users: {} | uptime: {} | msgs: {} | msg/s: {} | mem: {:.2} MB\x1b[0m",
-                version, user_count, format_uptime(*uptime_seconds), messages_sent, messages_per_second, memory_mb
-            )
+            let mut lines = vec![format!("\x1b[36m┌─ Server Status v{} ─┐\x1b[0m", version)];
+
+            // System info
+            if let Some(os_name) = os {
+                let cores = cpu_cores
+                    .map(|c| format!(" ({} cores)", c))
+                    .unwrap_or_default();
+                lines.push(format!(
+                    "\x1b[36m│\x1b[0m Platform    \x1b[37m{}{}\x1b[0m",
+                    os_name, cores
+                ));
+            }
+            if let Some(rust_ver) = rust_version {
+                lines.push(format!(
+                    "\x1b[36m│\x1b[0m Rust        \x1b[37m{}\x1b[0m",
+                    rust_ver
+                ));
+            }
+
+            // Runtime stats
+            lines.push(format!(
+                "\x1b[36m│\x1b[0m Uptime      \x1b[37m{}\x1b[0m",
+                format_uptime(*uptime_seconds)
+            ));
+            let peak = peak_users
+                .map(|p| format!(" (peak: {})", p))
+                .unwrap_or_default();
+            lines.push(format!(
+                "\x1b[36m│\x1b[0m Users       \x1b[37m{}{}\x1b[0m",
+                user_count, peak
+            ));
+            if let Some(conns) = connections_total {
+                lines.push(format!(
+                    "\x1b[36m│\x1b[0m Connections \x1b[37m{}\x1b[0m",
+                    conns
+                ));
+            }
+            lines.push(format!(
+                "\x1b[36m│\x1b[0m Messages    \x1b[37m{}\x1b[0m",
+                messages_sent
+            ));
+            lines.push(format!(
+                "\x1b[36m│\x1b[0m Throughput  \x1b[37m{} msg/s\x1b[0m",
+                messages_per_second
+            ));
+            lines.push(format!(
+                "\x1b[36m│\x1b[0m Memory      \x1b[37m{:.2} MB\x1b[0m",
+                memory_mb
+            ));
+
+            // AI status
+            if let Some(enabled) = ai_enabled {
+                let ai_status = if *enabled {
+                    format!(
+                        "\x1b[32m{}\x1b[0m",
+                        ai_model.as_deref().unwrap_or("enabled")
+                    )
+                } else {
+                    "\x1b[90mdisabled\x1b[0m".to_string()
+                };
+                lines.push(format!("\x1b[36m│\x1b[0m AI          {}", ai_status));
+            }
+
+            lines.push("\x1b[36m└────────────────────┘\x1b[0m".to_string());
+            lines.join("\r\n")
         }
         Incoming::ListUsers { users } => {
             if users.is_empty() {

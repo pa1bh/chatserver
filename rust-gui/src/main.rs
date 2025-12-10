@@ -48,16 +48,29 @@ enum Incoming {
     #[serde(rename = "status")]
     Status {
         version: String,
+        #[serde(rename = "rustVersion")]
+        rust_version: Option<String>,
+        os: Option<String>,
+        #[serde(rename = "cpuCores")]
+        cpu_cores: Option<usize>,
         #[serde(rename = "uptimeSeconds")]
         uptime_seconds: u64,
         #[serde(rename = "userCount")]
         user_count: usize,
+        #[serde(rename = "peakUsers")]
+        peak_users: Option<usize>,
+        #[serde(rename = "connectionsTotal")]
+        connections_total: Option<u64>,
         #[serde(rename = "messagesSent")]
         messages_sent: u64,
         #[serde(rename = "messagesPerSecond")]
         messages_per_second: f64,
         #[serde(rename = "memoryMb")]
         memory_mb: f64,
+        #[serde(rename = "aiEnabled")]
+        ai_enabled: Option<bool>,
+        #[serde(rename = "aiModel")]
+        ai_model: Option<String>,
     },
     #[serde(rename = "listUsers")]
     ListUsers { users: Vec<UserInfo> },
@@ -273,16 +286,53 @@ impl ChatApp {
                     }
                     Incoming::Status {
                         version,
+                        rust_version,
+                        os,
+                        cpu_cores,
                         uptime_seconds,
                         user_count,
+                        peak_users,
+                        connections_total,
                         messages_sent,
                         messages_per_second,
                         memory_mb,
+                        ai_enabled,
+                        ai_model,
                     } => {
-                        self.messages.push(ChatLine::Status(format!(
-                            "v{} | Uptime: {} | Users: {} | Messages: {} | msg/s: {} | mem: {:.2} MB",
-                            version, format_uptime(uptime_seconds), user_count, messages_sent, messages_per_second, memory_mb
-                        )));
+                        let mut lines = vec![format!("─── Server Status v{} ───", version)];
+
+                        if let Some(os_name) = os {
+                            let cores = cpu_cores
+                                .map(|c| format!(" ({} cores)", c))
+                                .unwrap_or_default();
+                            lines.push(format!("Platform: {}{}", os_name, cores));
+                        }
+                        if let Some(rust_ver) = rust_version {
+                            lines.push(format!("Rust: {}", rust_ver));
+                        }
+                        lines.push(format!("Uptime: {}", format_uptime(uptime_seconds)));
+                        let peak = peak_users
+                            .map(|p| format!(" (peak: {})", p))
+                            .unwrap_or_default();
+                        lines.push(format!("Users: {}{}", user_count, peak));
+                        if let Some(conns) = connections_total {
+                            lines.push(format!("Connections: {}", conns));
+                        }
+                        lines.push(format!("Messages: {}", messages_sent));
+                        lines.push(format!("Throughput: {} msg/s", messages_per_second));
+                        lines.push(format!("Memory: {:.2} MB", memory_mb));
+                        if let Some(enabled) = ai_enabled {
+                            let ai_status = if enabled {
+                                ai_model.unwrap_or_else(|| "enabled".to_string())
+                            } else {
+                                "disabled".to_string()
+                            };
+                            lines.push(format!("AI: {}", ai_status));
+                        }
+
+                        for line in lines {
+                            self.messages.push(ChatLine::Status(line));
+                        }
                     }
                     Incoming::ListUsers { users } => {
                         let names: Vec<_> = users.iter().map(|u| u.name.as_str()).collect();

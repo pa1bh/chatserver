@@ -227,6 +227,67 @@ button:active {
   text-align: right;
 }
 
+/* Status panel styling */
+.msg.status-panel {
+  max-width: 100%;
+}
+
+.status-header {
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-version {
+  font-size: 11px;
+  font-weight: 500;
+  background: #4f46e5;
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.status-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.status-table tr {
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.status-table tr:last-child {
+  border-bottom: none;
+}
+
+.status-table td {
+  padding: 5px 8px;
+  vertical-align: middle;
+}
+
+.status-label {
+  color: #64748b;
+  font-weight: 500;
+  width: 100px;
+}
+
+.status-value {
+  color: #0f172a;
+  font-family: "SF Mono", Monaco, Consolas, monospace;
+}
+
+.status-ai-on {
+  color: #059669;
+}
+
+.status-ai-off {
+  color: #94a3b8;
+}
+
 .msg.ai {
   background: #faf5ff;
   border-color: #d8b4fe;
