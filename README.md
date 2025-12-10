@@ -81,17 +81,34 @@ cd rust-ws && cargo run       # Rust backend
 ¹ Rust backend only, requires AI configuration
 ² Rust backend only: `messagesPerSecond`, `memoryMb`, and `ip` fields
 
-## limits and checks
+## Security
 
-```
-| Check               | Locatie         | Limiet          |
-|---------------------|-----------------|-----------------|
-| Chat message length | handlers.rs:140 | max 500 chars   |
-| Username length     | handlers.rs:176 | 2-32 chars      |
-| AI prompt length    | ai.rs:165       | max 1000 chars  |
-| Chat rate limit     | handlers.rs:152 | configureerbaar |
-| AI rate limit       | ai.rs:137       | configureerbaar |
-```
+### Input Validation (backend)
+
+The Rust backend validates all input:
+
+| Check | Limit |
+|-------|-------|
+| Chat message length | max 500 chars |
+| Username length | 2-32 chars |
+| Username characters | alphanumeric, space, `-`, `_` only |
+| AI prompt length | max 1000 chars |
+| Chat rate limit | configurable (default 60/min) |
+| AI rate limit | configurable (default 5/min) |
+
+### XSS Prevention (frontend)
+
+The web client handles sanitization:
+
+- **Chat messages**: rendered via `textContent` (auto-escapes HTML)
+- **AI responses**: parsed as markdown with explicit HTML escaping (`<`, `>`, `&`)
+- **Usernames/metadata**: rendered via `textContent`
+
+The backend does not sanitize HTML because:
+1. It's data-agnostic (native clients don't render HTML)
+2. Each client is responsible for safe rendering
+3. This follows standard practice (Slack, Discord, etc.)
+
 ## Frontend Commands
 - `/name new_name` — change username.
 - `/status` — request server status.
