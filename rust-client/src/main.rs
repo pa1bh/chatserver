@@ -13,6 +13,18 @@ use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 const MAX_HISTORY: usize = 20;
 
+fn format_uptime(seconds: u64) -> String {
+    if seconds < 60 {
+        format!("{} sec", seconds)
+    } else if seconds < 3600 {
+        format!("{} min", seconds / 60)
+    } else if seconds < 86400 {
+        format!("{} uur", seconds / 3600)
+    } else {
+        format!("{} dagen", seconds / 86400)
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 enum Outgoing {
@@ -106,8 +118,8 @@ fn format_message(msg: &Incoming) -> String {
             memory_mb,
         } => {
             format!(
-                "\x1b[36m[Status] v{} | users: {} | uptime: {}s | msgs: {} | msg/s: {} | mem: {:.2} MB\x1b[0m",
-                version, user_count, uptime_seconds, messages_sent, messages_per_second, memory_mb
+                "\x1b[36m[Status] v{} | users: {} | uptime: {} | msgs: {} | msg/s: {} | mem: {:.2} MB\x1b[0m",
+                version, user_count, format_uptime(*uptime_seconds), messages_sent, messages_per_second, memory_mb
             )
         }
         Incoming::ListUsers { users } => {

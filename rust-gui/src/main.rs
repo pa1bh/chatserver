@@ -7,6 +7,18 @@ use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use tokio_tungstenite::tungstenite::Message;
 
+fn format_uptime(seconds: u64) -> String {
+    if seconds < 60 {
+        format!("{} sec", seconds)
+    } else if seconds < 3600 {
+        format!("{} min", seconds / 60)
+    } else if seconds < 86400 {
+        format!("{} uur", seconds / 3600)
+    } else {
+        format!("{} dagen", seconds / 86400)
+    }
+}
+
 #[derive(Debug, Serialize, Clone)]
 #[serde(tag = "type", rename_all = "camelCase")]
 enum Outgoing {
@@ -268,8 +280,8 @@ impl ChatApp {
                         memory_mb,
                     } => {
                         self.messages.push(ChatLine::Status(format!(
-                            "v{} | Uptime: {}s | Users: {} | Messages: {} | msg/s: {} | mem: {:.2} MB",
-                            version, uptime_seconds, user_count, messages_sent, messages_per_second, memory_mb
+                            "v{} | Uptime: {} | Users: {} | Messages: {} | msg/s: {} | mem: {:.2} MB",
+                            version, format_uptime(uptime_seconds), user_count, messages_sent, messages_per_second, memory_mb
                         )));
                     }
                     Incoming::ListUsers { users } => {
