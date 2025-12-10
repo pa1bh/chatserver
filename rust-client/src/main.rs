@@ -137,70 +137,84 @@ fn format_message(msg: &Incoming) -> String {
             ai_enabled,
             ai_model,
         } => {
-            let mut lines = vec![format!("\x1b[36m┌─ Server Status v{} ─┐\x1b[0m", version)];
+            let mut rows: Vec<(String, String)> = Vec::new();
 
             // System info
             if let Some(os_name) = os {
                 let cores = cpu_cores
                     .map(|c| format!(" ({} cores)", c))
                     .unwrap_or_default();
-                lines.push(format!(
-                    "\x1b[36m│\x1b[0m Platform    \x1b[37m{}{}\x1b[0m",
-                    os_name, cores
-                ));
+                rows.push(("Platform".to_string(), format!("{}{}", os_name, cores)));
             }
             if let Some(rust_ver) = rust_version {
-                lines.push(format!(
-                    "\x1b[36m│\x1b[0m Rust        \x1b[37m{}\x1b[0m",
-                    rust_ver
-                ));
+                rows.push(("Rust".to_string(), rust_ver.clone()));
             }
 
             // Runtime stats
-            lines.push(format!(
-                "\x1b[36m│\x1b[0m Uptime      \x1b[37m{}\x1b[0m",
-                format_uptime(*uptime_seconds)
-            ));
+            rows.push(("Uptime".to_string(), format_uptime(*uptime_seconds)));
             let peak = peak_users
                 .map(|p| format!(" (peak: {})", p))
                 .unwrap_or_default();
-            lines.push(format!(
-                "\x1b[36m│\x1b[0m Users       \x1b[37m{}{}\x1b[0m",
-                user_count, peak
-            ));
+            rows.push(("Users".to_string(), format!("{}{}", user_count, peak)));
             if let Some(conns) = connections_total {
-                lines.push(format!(
-                    "\x1b[36m│\x1b[0m Connections \x1b[37m{}\x1b[0m",
-                    conns
-                ));
+                rows.push(("Connections".to_string(), conns.to_string()));
             }
-            lines.push(format!(
-                "\x1b[36m│\x1b[0m Messages    \x1b[37m{}\x1b[0m",
-                messages_sent
+            rows.push(("Messages".to_string(), messages_sent.to_string()));
+            rows.push((
+                "Throughput".to_string(),
+                format!("{} msg/s", messages_per_second),
             ));
-            lines.push(format!(
-                "\x1b[36m│\x1b[0m Throughput  \x1b[37m{} msg/s\x1b[0m",
-                messages_per_second
-            ));
-            lines.push(format!(
-                "\x1b[36m│\x1b[0m Memory      \x1b[37m{:.2} MB\x1b[0m",
-                memory_mb
-            ));
+            rows.push(("Memory".to_string(), format!("{:.2} MB", memory_mb)));
 
             // AI status
             if let Some(enabled) = ai_enabled {
                 let ai_status = if *enabled {
-                    format!(
-                        "\x1b[32m{}\x1b[0m",
-                        ai_model.as_deref().unwrap_or("enabled")
-                    )
+                    ai_model.as_deref().unwrap_or("enabled").to_string()
                 } else {
-                    "\x1b[90mdisabled\x1b[0m".to_string()
+                    "disabled".to_string()
                 };
-                lines.push(format!("\x1b[36m│\x1b[0m AI          {}", ai_status));
+                rows.push(("AI".to_string(), ai_status));
             }
 
-            lines.push("\x1b[36m└────────────────────┘\x1b[0m".to_string());
+            // Calculate max value width for box sizing
+            let value_width = rows
+                .iter()
+                .map(|(_, v)| v.len())
+                .max()
+                .unwrap_or(10)
+                .max(10);
+            let box_width = 12 + value_width + 3; // "│ Label       Value │"
+            let title = format!(" Server Status v{} ", version);
+            let title_padding = box_width.saturating_sub(title.len() + 2);
+            let left_pad = title_padding / 2;
+            let right_pad = title_padding - left_pad;
+
+            let mut lines = Vec::new();
+            lines.push(format!(
+                "\x1b[36m┌{}{}{}┐\x1b[0m",
+                "─".repeat(left_pad),
+                title,
+                "─".repeat(right_pad)
+            ));
+
+            for (label, value) in &rows {
+                // Color AI status specially
+                let colored_value = if label == "AI" {
+                    if value == "disabled" {
+                        format!("\x1b[90m{:<width$}\x1b[0m", value, width = value_width)
+                    } else {
+                        format!("\x1b[32m{:<width$}\x1b[0m", value, width = value_width)
+                    }
+                } else {
+                    format!("\x1b[37m{:<width$}\x1b[0m", value, width = value_width)
+                };
+                lines.push(format!(
+                    "\x1b[36m│\x1b[0m {:<11} {} \x1b[36m│\x1b[0m",
+                    label, colored_value
+                ));
+            }
+
+            lines.push(format!("\x1b[36m└{}┘\x1b[0m", "─".repeat(box_width - 2)));
             lines.join("\r\n")
         }
         Incoming::ListUsers { users } => {
