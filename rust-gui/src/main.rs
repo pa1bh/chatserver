@@ -92,7 +92,9 @@ enum Incoming {
 
 #[derive(Debug, Deserialize, Clone)]
 struct UserInfo {
+    id: String,
     name: String,
+    ip: String,
 }
 
 #[derive(Clone)]
@@ -299,7 +301,7 @@ impl ChatApp {
                         ai_enabled,
                         ai_model,
                     } => {
-                        let mut lines = vec![format!("─── Server Status v{} ───", version)];
+                        let mut lines = vec![format!("Server Status v{}", version)];
 
                         if let Some(os_name) = os {
                             let cores = cpu_cores
@@ -335,9 +337,19 @@ impl ChatApp {
                         }
                     }
                     Incoming::ListUsers { users } => {
-                        let names: Vec<_> = users.iter().map(|u| u.name.as_str()).collect();
-                        self.messages
-                            .push(ChatLine::Status(format!("Users: {}", names.join(", "))));
+                        if users.is_empty() {
+                            self.messages
+                                .push(ChatLine::Status("No users connected".to_string()));
+                        } else {
+                            self.messages
+                                .push(ChatLine::Status(format!("Users ({})", users.len())));
+                            for u in &users {
+                                self.messages.push(ChatLine::Status(format!(
+                                    "  {}  {}  {}",
+                                    u.id, u.name, u.ip
+                                )));
+                            }
+                        }
                     }
                     Incoming::Error { message } => {
                         self.messages.push(ChatLine::Error(message));
@@ -523,8 +535,8 @@ impl eframe::App for ChatApp {
 fn main() -> eframe::Result<()> {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([500.0, 400.0])
-            .with_min_inner_size([300.0, 200.0]),
+            .with_inner_size([600.0, 450.0])
+            .with_min_inner_size([400.0, 300.0]),
         ..Default::default()
     };
 
