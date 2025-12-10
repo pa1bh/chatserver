@@ -268,7 +268,18 @@ async fn main() {
         let mut history: Vec<String> = Vec::new();
         let mut history_idx: Option<usize> = None;
         let mut input = String::new();
-        let mut cursor_pos: usize = 0;
+        let mut cursor_pos: usize = 0; // char index, not byte index
+
+        // Helper to get byte index from char index
+        let char_to_byte = |s: &str, char_idx: usize| -> usize {
+            s.char_indices()
+                .nth(char_idx)
+                .map(|(i, _)| i)
+                .unwrap_or(s.len())
+        };
+
+        // Helper to get char count
+        let char_count = |s: &str| -> usize { s.chars().count() };
 
         loop {
             if event::poll(std::time::Duration::from_millis(100)).unwrap_or(false) {
@@ -304,10 +315,12 @@ async fn main() {
                         }
                         KeyCode::Backspace => {
                             if cursor_pos > 0 {
-                                input.remove(cursor_pos - 1);
+                                let byte_pos = char_to_byte(&input, cursor_pos - 1);
+                                let next_byte_pos = char_to_byte(&input, cursor_pos);
+                                input.replace_range(byte_pos..next_byte_pos, "");
                                 cursor_pos -= 1;
                                 print!("\r\x1b[K> {}", input);
-                                if cursor_pos < input.len() {
+                                if cursor_pos < char_count(&input) {
                                     let _ = execute!(
                                         io::stdout(),
                                         cursor::MoveToColumn((cursor_pos + 2) as u16)
@@ -324,7 +337,7 @@ async fn main() {
                             }
                         }
                         KeyCode::Right => {
-                            if cursor_pos < input.len() {
+                            if cursor_pos < char_count(&input) {
                                 cursor_pos += 1;
                                 let _ = execute!(io::stdout(), cursor::MoveRight(1));
                                 let _ = io::stdout().flush();
@@ -339,7 +352,7 @@ async fn main() {
                                 };
                                 history_idx = Some(new_idx);
                                 input = history[new_idx].clone();
-                                cursor_pos = input.len();
+                                cursor_pos = char_count(&input);
                                 print!("\r\x1b[K> {}", input);
                                 let _ = io::stdout().flush();
                             }
@@ -349,7 +362,7 @@ async fn main() {
                                 Some(i) if i + 1 < history.len() => {
                                     history_idx = Some(i + 1);
                                     input = history[i + 1].clone();
-                                    cursor_pos = input.len();
+                                    cursor_pos = char_count(&input);
                                 }
                                 Some(_) => {
                                     history_idx = None;
@@ -369,10 +382,11 @@ async fn main() {
                             std::process::exit(0);
                         }
                         KeyCode::Char(c) => {
-                            input.insert(cursor_pos, c);
+                            let byte_pos = char_to_byte(&input, cursor_pos);
+                            input.insert(byte_pos, c);
                             cursor_pos += 1;
                             print!("\r\x1b[K> {}", input);
-                            if cursor_pos < input.len() {
+                            if cursor_pos < char_count(&input) {
                                 let _ = execute!(
                                     io::stdout(),
                                     cursor::MoveToColumn((cursor_pos + 2) as u16)
