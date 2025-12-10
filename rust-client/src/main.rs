@@ -183,7 +183,8 @@ fn format_message(msg: &Incoming) -> String {
                 .max()
                 .unwrap_or(10)
                 .max(10);
-            let box_width = 12 + value_width + 3; // "│ Label       Value │"
+            // "│ " + 11 (label) + " " + value_width + " │" = 16 + value_width
+            let box_width = 16 + value_width;
             let title = format!(" Server Status v{} ", version);
             let title_padding = box_width.saturating_sub(title.len() + 2);
             let left_pad = title_padding / 2;
