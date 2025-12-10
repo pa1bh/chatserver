@@ -176,6 +176,12 @@ async fn process_message(state: &AppState, id: Uuid, text: String) -> Result<(),
             if trimmed.len() < 2 || trimmed.len() > 32 {
                 return Err("Naam moet tussen 2 en 32 tekens zijn.".into());
             }
+            if !trimmed
+                .chars()
+                .all(|c| c.is_alphanumeric() || c == ' ' || c == '-' || c == '_')
+            {
+                return Err("Naam mag alleen letters, cijfers, spaties, - en _ bevatten.".into());
+            }
 
             let rename_info = {
                 if let Some(mut entry) = state.clients.get_mut(&id) {
