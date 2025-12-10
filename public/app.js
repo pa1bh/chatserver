@@ -169,9 +169,14 @@ const handleMessage = (event) => {
       appendMessage("msg", payload.text, `${payload.from} • ${new Date(payload.at).toLocaleTimeString()}`, isMine);
       break;
     }
-    case "system":
-      appendMessage("system", payload.text, new Date(payload.at).toLocaleTimeString());
+    case "system": {
+      const isPresence = payload.text.endsWith("heeft de chat betreden.") ||
+                         payload.text.endsWith("heeft de chat verlaten.") ||
+                         / heet nu .+\.$/.test(payload.text);
+      const msgType = isPresence ? "presence" : "system";
+      appendMessage(msgType, payload.text, new Date(payload.at).toLocaleTimeString());
       break;
+    }
     case "ackName":
       currentName = payload.name;
       nicknameInput.value = payload.name;
@@ -252,8 +257,6 @@ const connect = () => {
     if (nicknameInput.value.trim()) {
       sendPayload({ type: "setName", name: nicknameInput.value.trim() });
     }
-    sendPayload({ type: "status" });
-    sendPayload({ type: "listUsers" });
   };
 
   socket.onmessage = handleMessage;

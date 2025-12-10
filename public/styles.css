@@ -128,8 +128,8 @@ button:active {
 .msg {
   padding: 10px 12px;
   border-radius: 10px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: #ecfeff;
+  border: 1px solid #67e8f9;
   align-self: flex-start;
   max-width: 75%;
 }
@@ -148,14 +148,32 @@ button:active {
 }
 
 .msg.system {
-  background: #ecfeff;
-  border-color: #67e8f9;
+  background: #f8fafc;
+  border-color: #e2e8f0;
   white-space: pre-line;
 }
 
 .msg.error {
   background: #fff1f2;
   border-color: #fecdd3;
+}
+
+.msg.presence {
+  background: transparent;
+  border: none;
+  padding: 2px 8px;
+  font-size: 12px;
+  color: #94a3b8;
+  max-width: 100%;
+  align-self: center;
+}
+
+.msg.presence .meta {
+  display: none;
+}
+
+.msg.presence .body {
+  text-align: center;
 }
 
 .msg.ai {
@@ -207,11 +225,13 @@ button:active {
 
 .msg.ai ul, .msg.ai ol {
   margin: 6px 0;
-  padding-left: 20px;
+  padding-left: 1.5em;
+  list-style-position: outside;
 }
 
 .msg.ai li {
   margin: 3px 0;
+  list-style-position: inside;
 }
 
 .msg.ai strong {
