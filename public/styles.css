@@ -288,6 +288,22 @@ button:active {
   color: #94a3b8;
 }
 
+.status-footer {
+  margin-top: 8px;
+  text-align: right;
+  font-size: 11px;
+}
+
+.status-footer a {
+  color: #cbd5e1;
+  text-decoration: none;
+}
+
+.status-footer a:hover {
+  color: #94a3b8;
+  text-decoration: underline;
+}
+
 .msg.ai {
   background: #faf5ff;
   border-color: #d8b4fe;

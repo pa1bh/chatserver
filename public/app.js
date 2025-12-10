@@ -242,6 +242,18 @@ const appendStatus = (payload) => {
   }
 
   body.appendChild(table);
+
+  // Subtle GitHub link
+  const footer = document.createElement("div");
+  footer.className = "status-footer";
+  const link = document.createElement("a");
+  link.href = "https://github.com/pa1bh/chatserver/";
+  link.target = "_blank";
+  link.rel = "noopener";
+  link.textContent = "github";
+  footer.appendChild(link);
+  body.appendChild(footer);
+
   item.appendChild(metaEl);
   item.appendChild(body);
   messagesEl.appendChild(item);
