@@ -18,10 +18,16 @@ use crate::{
     utils::now_ms,
 };
 
-fn trust_proxy_headers() -> bool {
+fn trust_proxy_headers_configured() -> bool {
     std::env::var("TRUST_PROXY_HEADERS")
         .map(|v| v.eq_ignore_ascii_case("true") || v == "1")
         .unwrap_or(false)
+}
+
+fn should_trust_proxy_headers(addr: SocketAddr) -> bool {
+    // Bun reverse proxy on the same host appears as loopback; trust its forwarded headers.
+    // Non-loopback peers must opt in explicitly via TRUST_PROXY_HEADERS=true.
+    addr.ip().is_loopback() || trust_proxy_headers_configured()
 }
 
 fn extract_client_ip(headers: &HeaderMap, addr: SocketAddr, trust_proxy: bool) -> String {
@@ -50,7 +56,7 @@ pub async fn ws_handler(
     headers: HeaderMap,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
 ) -> impl IntoResponse {
-    let client_ip = extract_client_ip(&headers, addr, trust_proxy_headers());
+    let client_ip = extract_client_ip(&headers, addr, should_trust_proxy_headers(addr));
 
     ws.on_upgrade(move |socket| handle_socket(state, socket, client_ip))
 }
