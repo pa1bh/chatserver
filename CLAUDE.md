@@ -58,7 +58,7 @@ The project is a chat server with two separate processes:
 ### Native Clients
 
 - `rust-client/` - CLI chat client with command history
-- `rust-gui/` - GUI chat client using egui
+- `rust-gui/` - moved to a separate repository (no longer part of this server project)
 - `rust-wsmonitor/` - Health check CLI tool for scripts
 
 ### WebSocket Protocol
@@ -74,9 +74,10 @@ Outbound (server → client):
 - `chat { from, text, at }` - Chat message
 - `system { text, at }` - Join/leave/rename events
 - `ackName { name, at }` - Name change confirmation
-- `status { uptimeSeconds, userCount, messagesSent, messagesPerSecond, memoryMb }`
+- `status { version, rustVersion, os, cpuCores, uptimeSeconds, userCount, peakUsers, connectionsTotal, messagesSent, messagesPerSecond, memoryMb, aiEnabled, aiModel? }`
 - `listUsers { users: [{ id, name, ip }] }`
 - `pong { token?, at }` - Response to ping
+- `ai { from, prompt, response, responseMs, tokens?, cost?, at }` - AI response broadcast
 - `error { message }`
 
 ### Frontend Commands
@@ -85,6 +86,7 @@ Outbound (server → client):
 - `/status` - Get server status
 - `/users` - List connected users
 - `/ping [token]` - Measure roundtrip time
+- `/ai <question>` - Ask AI a question (requires configuration)
 
 ## Code Style
 

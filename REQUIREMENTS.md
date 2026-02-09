@@ -1,7 +1,7 @@
 # Project Requirements
 
 ## Goal and Scope
-This project is a chat server/client based on WebSockets.
+This project is a WebSocket chat server project.
 
 There are two entrypoints (processes):
 - A web server to serve the client code to the browser
@@ -44,10 +44,10 @@ Both may reside in the same project but must be startable independently, allowin
 - `chat { from, text, at }` - Chat message
 - `system { text, at }` - Join/leave/rename events
 - `ackName { name, at }` - Name change confirmation
-- `status { uptimeSeconds, userCount, messagesSent, messagesPerSecond, memoryMb }`
+- `status { version, rustVersion, os, cpuCores, uptimeSeconds, userCount, peakUsers, connectionsTotal, messagesSent, messagesPerSecond, memoryMb, aiEnabled, aiModel? }`
 - `listUsers { users: [{ id, name, ip }] }`
 - `pong { token?, at }` - Response to ping
-- `ai { from, prompt, response, at }` - AI response broadcast
+- `ai { from, prompt, response, responseMs, tokens?, cost?, at }` - AI response broadcast
 - `error { message }` - Error message
 
 ### Backend Implementations
@@ -56,7 +56,7 @@ Both may reside in the same project but must be startable independently, allowin
 
 ### Native Clients
 - `rust-client/` - CLI chat client with command history
-- `rust-gui/` - GUI chat client using egui
+- `rust-gui/` - moved to a separate repository (not maintained in this project)
 - `rust-wsmonitor/` - Health check CLI tool for scripts
 - `rust-wsbench/` - Load testing / benchmark tool
 

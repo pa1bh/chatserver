@@ -13,7 +13,6 @@ Real-time chat server with a Bun/Express frontend and high-performance Rust WebS
 | HTTP Server | `index.ts` | Express frontend, serves chat UI |
 | WS Backend | `rust-ws/` | Rust/Axum WebSocket server (production) |
 | CLI Client | `rust-client/` | Terminal chat client |
-| GUI Client | `rust-gui/` | Graphical client (egui) |
 | Health Monitor | `rust-wsmonitor/` | Health check tool |
 | Benchmark | `rust-wsbench/` | Load testing tool |
 | Bun WS | `ws-server.ts` | TypeScript backend (deprecated) |
@@ -72,14 +71,14 @@ cd rust-ws && cargo run       # Rust backend
   - `chat` `{ from, text, at }`
   - `system` `{ text, at }`
   - `ackName` `{ name, at }`
-  - `status` `{ uptimeSeconds, userCount, messagesSent, messagesPerSecond, memoryMb }` ²
+  - `status` `{ version, rustVersion, os, cpuCores, uptimeSeconds, userCount, peakUsers, connectionsTotal, messagesSent, messagesPerSecond, memoryMb, aiEnabled, aiModel? }` ²
   - `listUsers` `{ users: [{ id, name, ip }] }` ²
   - `pong` `{ token?, at }` — response to ping with the same token
-  - `ai` `{ from, prompt, response, at }` — AI response broadcast ¹
+  - `ai` `{ from, prompt, response, responseMs, tokens?, cost?, at }` — AI response broadcast ¹
   - `error` `{ message }`
 
 ¹ Rust backend only, requires AI configuration
-² Rust backend only: `messagesPerSecond`, `memoryMb`, and `ip` fields
+² Rust backend only: this exact status shape and `ip` in `listUsers`
 
 ## Security
 
@@ -251,7 +250,7 @@ This version has the same protocol as the Rust backend, but lower performance (s
 
 ## Native Clients
 
-Two native Rust clients available:
+Native Rust clients in this repository:
 
 ### CLI Client
 
@@ -270,21 +269,7 @@ Features:
 - Command history with arrow keys (↑/↓)
 - Cursor navigation (←/→)
 
-### GUI Client
-
-Graphical chat client built with egui.
-
-```bash
-cd rust-gui
-cargo build --release
-./target/release/chat-gui
-```
-
-Features:
-- Configurable server URL
-- Connect/disconnect button
-- Send messages with Enter
-- Commands: `/name`, `/status`, `/users`, `/ping`
+The old `rust-gui` (egui client) has been moved to a separate project and is no longer included in this repository.
 
 ### Health Monitor (wsmonitor)
 
@@ -368,7 +353,7 @@ cargo install websocat
 $ websocat -t ws://127.0.0.1:3001
 {"type":"ackName","name":"guest-a1b2c3","at":1733312400000}
 {"type":"status"}
-{"type":"status","uptimeSeconds":42.5,"userCount":1,"messagesSent":0}
+{"type":"status","version":"0.1.0","rustVersion":"1.82.0","os":"macos","cpuCores":10,"uptimeSeconds":42,"userCount":1,"peakUsers":1,"connectionsTotal":1,"messagesSent":0,"messagesPerSecond":0.0,"memoryMb":8.31,"aiEnabled":false}
 {"type":"chat","text":"Hello!"}
 {"type":"chat","from":"guest-a1b2c3","text":"Hello!","at":1733312410000}
 {"type":"setName","name":"Bas"}
