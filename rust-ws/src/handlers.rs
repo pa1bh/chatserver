@@ -18,14 +18,19 @@ use crate::{
     utils::now_ms,
 };
 
-pub async fn ws_handler(
-    ws: WebSocketUpgrade,
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
-) -> impl IntoResponse {
-    // Extract real IP from X-Forwarded-For or X-Real-IP header (set by reverse proxy)
-    let client_ip = headers
+fn trust_proxy_headers() -> bool {
+    std::env::var("TRUST_PROXY_HEADERS")
+        .map(|v| v.eq_ignore_ascii_case("true") || v == "1")
+        .unwrap_or(false)
+}
+
+fn extract_client_ip(headers: &HeaderMap, addr: SocketAddr, trust_proxy: bool) -> String {
+    if !trust_proxy {
+        return addr.ip().to_string();
+    }
+
+    // Only use forwarding headers when explicitly enabled (trusted reverse proxy setup).
+    headers
         .get("x-forwarded-for")
         .and_then(|v| v.to_str().ok())
         .and_then(|s| s.split(',').next()) // Take first IP if multiple
@@ -36,7 +41,16 @@ pub async fn ws_handler(
                 .and_then(|v| v.to_str().ok())
                 .map(|s| s.trim().to_string())
         })
-        .unwrap_or_else(|| addr.ip().to_string());
+        .unwrap_or_else(|| addr.ip().to_string())
+}
+
+pub async fn ws_handler(
+    ws: WebSocketUpgrade,
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+) -> impl IntoResponse {
+    let client_ip = extract_client_ip(&headers, addr, trust_proxy_headers());
 
     ws.on_upgrade(move |socket| handle_socket(state, socket, client_ip))
 }
@@ -265,14 +279,14 @@ async fn process_message(state: &AppState, id: Uuid, text: String) -> Result<(),
             }
         }
         Incoming::Ai { prompt } => {
-            let name = state
+            let (name, rate_limit_key) = state
                 .clients
                 .get(&id)
-                .map(|e| e.value().name.clone())
-                .unwrap_or_else(|| "unknown".to_string());
+                .map(|e| (e.value().name.clone(), e.value().ip.clone()))
+                .unwrap_or_else(|| ("unknown".to_string(), id.to_string()));
 
             // Query AI (this may take a few seconds)
-            match state.ai.query(id, &prompt).await {
+            match state.ai.query(&rate_limit_key, &prompt).await {
                 Ok(ai_response) => {
                     broadcast(
                         state,

@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tracing::{debug, error, info};
-use uuid::Uuid;
 
 const OPENROUTER_API_URL: &str = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -120,12 +119,13 @@ pub struct AiResponse {
 struct RateLimitEntry {
     count: u32,
     window_start: Instant,
+    last_seen: Instant,
 }
 
 pub struct AiClient {
     config: AiConfig,
     http: Client,
-    rate_limits: Arc<DashMap<Uuid, RateLimitEntry>>,
+    rate_limits: Arc<DashMap<String, RateLimitEntry>>,
 }
 
 impl AiClient {
@@ -150,20 +150,33 @@ impl AiClient {
         &self.config.model
     }
 
-    fn check_rate_limit(&self, user_id: Uuid) -> Result<(), String> {
+    fn purge_stale_rate_limits(&self, now: Instant) {
+        // Keep short-lived, inactive keys bounded to prevent unbounded memory growth.
+        let ttl = Duration::from_secs(60 * 10);
+        self.rate_limits
+            .retain(|_, entry| now.duration_since(entry.last_seen) < ttl);
+    }
+
+    fn check_rate_limit(&self, user_key: &str) -> Result<(), String> {
         let now = Instant::now();
         let window = Duration::from_secs(60);
+        self.purge_stale_rate_limits(now);
 
-        let mut entry = self.rate_limits.entry(user_id).or_insert(RateLimitEntry {
-            count: 0,
-            window_start: now,
-        });
+        let mut entry = self
+            .rate_limits
+            .entry(user_key.to_string())
+            .or_insert(RateLimitEntry {
+                count: 0,
+                window_start: now,
+                last_seen: now,
+            });
 
         // Reset window if expired
         if now.duration_since(entry.window_start) >= window {
             entry.count = 0;
             entry.window_start = now;
         }
+        entry.last_seen = now;
 
         if entry.count >= self.config.rate_limit {
             let remaining = window
@@ -172,7 +185,7 @@ impl AiClient {
             return Err(format!(
                 "Rate limit bereikt (max {}/min). Probeer over {} seconden.",
                 self.config.rate_limit,
-                remaining.as_secs()
+                remaining.as_secs().max(1)
             ));
         }
 
@@ -180,13 +193,13 @@ impl AiClient {
         Ok(())
     }
 
-    pub async fn query(&self, user_id: Uuid, prompt: &str) -> Result<AiResponse, String> {
+    pub async fn query(&self, user_key: &str, prompt: &str) -> Result<AiResponse, String> {
         if !self.is_enabled() {
             return Err("AI is niet geactiveerd op deze server.".to_string());
         }
 
         // Check rate limit
-        self.check_rate_limit(user_id)?;
+        self.check_rate_limit(user_key)?;
 
         // Validate prompt
         let prompt = prompt.trim();
@@ -197,7 +210,7 @@ impl AiClient {
             return Err("Vraag is te lang (max 1000 tekens).".to_string());
         }
 
-        debug!(user_id = %user_id, prompt_len = prompt.len(), "Sending AI request");
+        debug!(user_key, prompt_len = prompt.len(), "Sending AI request");
 
         let request = ChatRequest {
             model: self.config.model.clone(),
